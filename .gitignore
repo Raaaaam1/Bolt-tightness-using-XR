@@ -1,0 +1,34 @@
+# Virtual Environments
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+
+# Python cache & build
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# User uploads & ephemeral images in results
+results/*.jpg
+results/*.png
+results/*.pdf
+
+# Keep JSON state and config files in results
+!results/*.json
+!results/.gitkeep
+
+# Redundant duplicate subfolder
+XR_inspection/
+
+# Local scratch & IDE
+scratch/
+.vscode/
+.idea/
+*.log
+
+# OS artifacts
+.DS_Store
+Thumbs.db

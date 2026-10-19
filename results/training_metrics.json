@@ -1,0 +1,98 @@
+{
+    "visual_model": {
+        "accuracy": 1.0,
+        "features": [
+            "gap_mm_simulated",
+            "contact_score_simulated"
+        ],
+        "feature_importances": {
+            "gap_mm_simulated": 0.6199187787428148,
+            "contact_score_simulated": 0.38008122125718524
+        },
+        "report": {
+            "LOOSE_5MM": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 1334.0
+            },
+            "LOOSE_7_5MM": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 1333.0
+            },
+            "TIGHT": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 1333.0
+            },
+            "accuracy": 1.0,
+            "macro avg": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 4000.0
+            },
+            "weighted avg": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 4000.0
+            }
+        }
+    },
+    "multimodal_model": {
+        "accuracy": 1.0,
+        "features": [
+            "gap_mm_simulated",
+            "contact_score_simulated",
+            "torque_nm_simulated",
+            "rotation_deg_simulated",
+            "vibration_feature_simulated",
+            "temperature_c_simulated"
+        ],
+        "feature_importances": {
+            "gap_mm_simulated": 0.46658897697309576,
+            "contact_score_simulated": 0.09112761626003028,
+            "torque_nm_simulated": 0.16365588909903425,
+            "rotation_deg_simulated": 0.22038054159289072,
+            "vibration_feature_simulated": 0.05799826032724212,
+            "temperature_c_simulated": 0.0002487157477067601
+        },
+        "report": {
+            "LOOSE_5MM": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 1334.0
+            },
+            "LOOSE_7_5MM": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 1333.0
+            },
+            "TIGHT": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 1333.0
+            },
+            "accuracy": 1.0,
+            "macro avg": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 4000.0
+            },
+            "weighted avg": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1-score": 1.0,
+                "support": 4000.0
+            }
+        }
+    }
+}

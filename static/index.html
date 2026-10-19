@@ -1,0 +1,2954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XR Bolt Tightness Inspection - CAD Model 3D Digital Twin</title>
+  <!-- Three.js, OrbitControls, OBJLoader, Tween.js, jsPDF, autoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #050811;
+      color: #e2e8f0;
+      font-family: 'Rajdhani', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    /* Loading Overlay */
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #050811;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      transition: opacity 0.5s ease;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(0, 240, 255, 0.2);
+      border-top-color: #00f0ff;
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* Top Bar HUD */
+    header {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      right: 20px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 16, 28, 0.85);
+      backdrop-filter: blur(12px);
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      box-shadow: 0 4px 30px rgba(0, 240, 255, 0.12);
+    }
+    .hud-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .hud-title h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #00f0ff;
+      text-transform: uppercase;
+    }
+    .badge-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 255, 136, 0.15);
+      border: 1px solid #00ff88;
+      color: #00ff88;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+    .badge-live::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #00ff88;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.3); }
+    }
+
+    /* 3D Scene Theme Switcher */
+    .theme-switcher {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      padding: 3px 10px;
+      border-radius: 25px;
+      border: 1px solid rgba(0, 240, 255, 0.25);
+    }
+    .theme-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    .theme-pills {
+      display: flex;
+      gap: 4px;
+    }
+    .theme-pill {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .theme-pill:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .theme-pill.active {
+      color: #00f0ff;
+      background: rgba(0, 240, 255, 0.18);
+      border-color: rgba(0, 240, 255, 0.55);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Control Panel (Left) */
+    /* Control Panel (Left) - Figma Frosted Glassmorphism */
+    .panel {
+      position: absolute;
+      top: 85px;
+      left: 20px;
+      bottom: 20px;
+      width: 320px;
+      z-index: 10;
+      background: rgba(11, 19, 37, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      scrollbar-width: thin;
+      scrollbar-color: #0284c7 rgba(15, 23, 42, 0.6);
+    }
+    /* Sleek Custom Scrollbar */
+    .panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    .panel::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 4px;
+    }
+    .panel::-webkit-scrollbar-thumb {
+      background: #0284c7;
+      border-radius: 4px;
+    }
+    .panel::-webkit-scrollbar-thumb:hover {
+      background: #00f0ff;
+    }
+
+    /* Accordion Components */
+    .accordion-item {
+      background: rgba(17, 28, 51, 0.65);
+      border: 1px solid rgba(0, 240, 255, 0.18);
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .accordion-item.active {
+      border-color: rgba(0, 240, 255, 0.50);
+      box-shadow: 0 4px 20px rgba(0, 240, 255, 0.10);
+      background: rgba(15, 23, 42, 0.85);
+    }
+    .accordion-header {
+      padding: 10px 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      background: rgba(15, 23, 42, 0.45);
+      transition: all 0.2s ease;
+    }
+    .accordion-header:hover {
+      background: rgba(0, 240, 255, 0.12);
+    }
+    .accordion-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #00f0ff;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .accordion-chevron {
+      font-size: 11px;
+      color: #94a3b8;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .accordion-item.active .accordion-chevron {
+      transform: rotate(180deg);
+      color: #00f0ff;
+    }
+    .accordion-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      padding: 0 13px;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .accordion-item.active .accordion-body {
+      max-height: 1200px;
+      opacity: 1;
+      padding: 10px 13px 14px 13px;
+    }
+    .panel-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #00f0ff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      padding-bottom: 4px;
+      margin-top: 2px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+    .val-display {
+      font-family: 'JetBrains Mono', monospace;
+      color: #38bdf8;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      background: #1e293b;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #00f0ff;
+      cursor: pointer;
+      box-shadow: 0 0 8px #00f0ff;
+    }
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .btn {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.85);
+      color: #94a3b8;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover {
+      background: rgba(51, 65, 85, 0.9);
+      color: #f8fafc;
+      border-color: #00f0ff;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00b4d8, #0077b6);
+      color: white;
+      box-shadow: 0 0 15px rgba(0, 180, 216, 0.4);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #00f0ff, #0096c7);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.7);
+    }
+    .btn-camera {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    }
+    .btn-camera:hover {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.7);
+    }
+    .btn-torque {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+    }
+    .btn-torque:hover {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.7);
+    }
+    .btn-explode {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      color: white;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+    }
+    .btn-explode:hover {
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.7);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid #ef4444;
+      color: #ef4444;
+    }
+    .btn-danger:hover {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-screwdriver {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: white;
+      box-shadow: 0 0 15px rgba(2, 132, 199, 0.45);
+      border: 1px solid #38bdf8;
+    }
+    .btn-screwdriver:hover {
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.85);
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    }
+    .btn-screwdriver-all {
+      background: linear-gradient(135deg, #10b981, #047857);
+      color: white;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.45);
+      border: 1px solid #34d399;
+    }
+    .btn-screwdriver-all:hover {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.85);
+      background: linear-gradient(135deg, #34d399, #059669);
+    }
+    .btn-wrench {
+      background: linear-gradient(135deg, #f59e0b, #b45309);
+      color: white;
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+    }
+    .btn-wrench:hover {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+      background: linear-gradient(135deg, #fbbf24, #d97706);
+    }
+    .btn-wrench-all {
+      background: linear-gradient(135deg, #10b981, #047857);
+      color: white;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    }
+    .btn-wrench-all:hover {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+      background: linear-gradient(135deg, #34d399, #059669);
+    }
+    .btn-pdf {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      color: white;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    }
+    .btn-pdf:hover {
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+      background: linear-gradient(135deg, #f87171, #dc2626);
+    }
+    .btn-csv {
+      background: linear-gradient(135deg, #0ea5e9, #0369a1);
+      color: white;
+      box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
+    }
+    .btn-csv:hover {
+      box-shadow: 0 0 20px rgba(14, 165, 233, 0.8);
+      background: linear-gradient(135deg, #38bdf8, #0284c7);
+    }
+    /* Figma Industrial Button Styles */
+    .btn-figma-photo {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      border: 1px solid #38bdf8;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.35);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-figma-photo:hover {
+      background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.7);
+      transform: translateY(-1px);
+    }
+    .btn-figma-xr {
+      background: rgba(30, 27, 75, 0.85);
+      border: 1px solid #a855f7;
+      color: #e9d5ff;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.2);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-figma-xr:hover {
+      background: rgba(46, 16, 101, 0.95);
+      border-color: #c084fc;
+      box-shadow: 0 0 20px rgba(192, 132, 252, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-figma-screwdriver {
+      background: #0284c7;
+      border: 1px solid #38bdf8;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-figma-screwdriver:hover {
+      background: #0369a1;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.6);
+      transform: translateY(-1px);
+    }
+    .btn-figma-screw-all {
+      background: #854d0e;
+      border: 1px solid #eab308;
+      color: #fef08a;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-figma-screw-all:hover {
+      background: #713f12;
+      box-shadow: 0 0 16px rgba(234, 179, 8, 0.6);
+      transform: translateY(-1px);
+    }
+    .btn-figma-pdf {
+      background: #065f46;
+      border: 1px solid #10b981;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-figma-pdf:hover {
+      background: #047857;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+      transform: translateY(-1px);
+    }
+    .btn-figma-explode {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid #f59e0b;
+      color: #fbbf24;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-figma-explode:hover {
+      background: rgba(51, 65, 85, 0.85);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.45);
+      transform: translateY(-1px);
+    }
+    /* Toast Notification */
+    #toast-notification {
+      position: fixed;
+      bottom: 45px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 16, 28, 0.96);
+      border: 1px solid #00f0ff;
+      border-radius: 8px;
+      padding: 10px 22px;
+      color: #f8fafc;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.45);
+      z-index: 3000;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    /* Bolt Selector Buttons */
+    .bolt-tabs {
+      display: flex;
+      gap: 6px;
+    }
+    .bolt-tab {
+      flex: 1;
+      padding: 8px 4px;
+      background: #1e293b;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: #9ca3af;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .bolt-tab.active {
+      background: rgba(0, 240, 255, 0.25);
+      border-color: #00f0ff;
+      color: #00f0ff;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+    }
+    /* Right HUD / Telemetry Panel */
+    .right-hud {
+      position: absolute;
+      top: 85px;
+      right: 20px;
+      bottom: 20px;
+      width: 320px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    .right-hud::-webkit-scrollbar, .panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    .right-hud::-webkit-scrollbar-track, .panel::-webkit-scrollbar-track {
+      background: rgba(10, 16, 28, 0.5);
+      border-radius: 4px;
+    }
+    .right-hud::-webkit-scrollbar-thumb, .panel::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.35);
+      border-radius: 4px;
+    }
+    .right-hud::-webkit-scrollbar-thumb:hover, .panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 240, 255, 0.7);
+    }
+    .result-card {
+      background: rgba(10, 16, 28, 0.90);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    .status-tight {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid #10b981;
+      color: #10b981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+    }
+    .status-verify {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid #f59e0b;
+      color: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+    }
+    .status-loose {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      color: #ef4444;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+    }
+    .meter-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .meter-bar {
+      height: 7px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .meter-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease, background-color 0.4s ease;
+    }
+    .spatial-log {
+      max-height: 160px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+    .log-item {
+      padding: 7px;
+      background: rgba(17, 24, 39, 0.75);
+      border-left: 3px solid #ef4444;
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+    /* Photo Detection Thumbnail Card */
+    #photo-preview-card {
+      display: none;
+      background: rgba(10, 16, 28, 0.90);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    }
+    .photo-preview-wrapper {
+      position: relative;
+      width: 100%;
+      height: 210px;
+      background: #040711;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+    #photo-preview-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transition: transform 0.25s ease;
+    }
+    .photo-preview-wrapper:hover #photo-preview-img {
+      transform: scale(1.04);
+    }
+    .photo-expand-badge {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(10, 16, 28, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid #00f0ff;
+      color: #00f0ff;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 3px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+    /* 3D Scene Controls Hint */
+    .controls-hint {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(10, 16, 28, 0.75);
+      backdrop-filter: blur(8px);
+      padding: 6px 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      font-size: 12px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Screen -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00f0ff;">
+      LOADING CAD MODEL (holed_plate.obj)...
+    </div>
+  </div>
+
+  <!-- Top HUD Header (Figma Aligned) -->
+  <header>
+    <div class="hud-title">
+      <h1>XR FASTENER DIGITAL TWIN</h1>
+    </div>
+
+    <!-- Right: Status Badge & Theme Switcher (Matching Figma) -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div class="badge-live" style="background: rgba(6, 78, 59, 0.45); border: 1px solid rgba(16, 185, 129, 0.6); color: #34d399; font-size: 11px; padding: 4px 12px; border-radius: 13px; font-weight: 700; letter-spacing: 0.5px;">
+        ● SYSTEM ONLINE
+      </div>
+
+      <div class="theme-switcher">
+        <span class="theme-label">🎨 3D THEME:</span>
+        <div class="theme-pills">
+          <button id="theme-btn-cyberpunk" class="theme-pill active" onclick="setTheme('cyberpunk')" title="Deep Neon Cyberpunk Scene">
+            ⚡ Cyberpunk
+          </button>
+          <button id="theme-btn-aerospace" class="theme-pill" onclick="setTheme('aerospace')" title="Clean Slate-Blue Aerospace Engineering Lab">
+            🔬 Clean Lab
+          </button>
+          <button id="theme-btn-workshop" class="theme-pill" onclick="setTheme('workshop')" title="Industrial Factory Floor with Safety Amber Grid">
+            🏭 Factory Floor
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3D Three.js Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Left Control Panel (Figma Glassmorphism HUD) -->
+  <div class="panel">
+    <!-- 1. Target Fastener Tabs (Top of Panel, matching Figma) -->
+    <div style="background: rgba(17, 28, 51, 0.45); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 10px 10px 12px 10px;">
+      <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;">TARGET FASTENERS</div>
+      <div class="bolt-tabs">
+        <div class="bolt-tab active" onclick="selectBolt('B01')">B01</div>
+        <div class="bolt-tab" onclick="selectBolt('B02')">B02</div>
+        <div class="bolt-tab" onclick="selectBolt('B03')">B03</div>
+        <div class="bolt-tab" onclick="selectBolt('B04')">B04</div>
+      </div>
+    </div>
+
+    <!-- 2. Primary Action Buttons (Matching Figma Layout) -->
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <!-- Upload RGB Photo -->
+      <input type="file" id="photo-upload-input" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+      <button class="btn btn-figma-photo" onclick="document.getElementById('photo-upload-input').click()">
+        📸 UPLOAD RGB PHOTO
+      </button>
+
+      <!-- Upload XR Unity (.json) -->
+      <input type="file" id="xr-json-upload-input" accept=".json,application/json" style="display: none;" onchange="handleXRJsonUpload(event)">
+      <button class="btn btn-figma-xr" onclick="document.getElementById('xr-json-upload-input').click()">
+        📂 UPLOAD XR UNITY (.JSON)
+      </button>
+
+      <!-- Screwdriver & Screw All (Side by Side) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button id="btn-screwdriver-single" class="btn btn-figma-screwdriver" onclick="useScrewdriverOnSelected()" title="Engage 3D screwdriver to couple and tighten selected screw">
+          🪛 Screwdriver
+        </button>
+        <button id="btn-screwdriver-all" class="btn btn-figma-screw-all" onclick="autoScrewdriverAllDefects()" title="Automatically use screwdriver to drive and tighten all defective screws">
+          ⚡ Screw All
+        </button>
+      </div>
+
+      <!-- Download QA PDF -->
+      <button class="btn btn-figma-pdf" onclick="generateInspectionPDF()" title="Download certified QA PDF inspection report">
+        📄 Download QA PDF
+      </button>
+
+      <!-- Exploded Assembly View -->
+      <button id="btn-explode" class="btn btn-figma-explode" onclick="toggleExplodedView()">
+        💥 Exploded Assembly View
+      </button>
+    </div>
+
+    <!-- 3. Collapsible Sensors & Manual Sliders Accordion (Preserves All Existing Logic & Controls) -->
+    <div id="acc-sensors" class="accordion-item" style="margin-top: 4px;">
+      <div class="accordion-header" onclick="toggleAccordion('acc-sensors')">
+        <span class="accordion-title">🎛️ Advanced Sensor Sliders & Presets</span>
+        <span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">QUICK PRESETS</span>
+          <span id="sensor-source-badge" style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">MANUAL</span>
+        </div>
+        <div class="preset-grid">
+          <button class="btn btn-secondary" onclick="applyPreset('tight')">🟢 Tight (0mm)</button>
+          <button class="btn btn-secondary" onclick="applyPreset('loose5')">🔴 Loose 5mm</button>
+          <button class="btn btn-secondary" onclick="applyPreset('loose75')">🔴 Loose 7.5mm</button>
+          <button class="btn btn-secondary" onclick="applyPreset('verify')">🟡 Low Conf</button>
+        </div>
+
+        <!-- 2-Column Grid for Sensor Sliders (Compact, No Cut-Off) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 4px;">
+          <div class="form-group">
+            <label>Gap: <span class="val-display" id="val-gap">0.0 mm</span></label>
+            <input type="range" id="input-gap" min="0" max="8" step="0.1" value="0.0" oninput="markManualEdit(); updateValues()">
+          </div>
+          <div class="form-group">
+            <label>Contact: <span class="val-display" id="val-contact">0.96</span></label>
+            <input type="range" id="input-contact" min="0.5" max="1.0" step="0.01" value="0.96" oninput="markManualEdit(); updateValues()">
+          </div>
+
+          <div class="form-group">
+            <label>Vision Qual: <span class="val-display" id="val-vision">0.92</span></label>
+            <input type="range" id="input-vision" min="0.4" max="1.0" step="0.02" value="0.92" oninput="markManualEdit(); updateValues()">
+          </div>
+          <div class="form-group">
+            <label>Depth Qual: <span class="val-display" id="val-depth">0.88</span></label>
+            <input type="range" id="input-depth" min="0.4" max="1.0" step="0.02" value="0.88" oninput="markManualEdit(); updateValues()">
+          </div>
+
+          <div class="form-group">
+            <label>Torque: <span class="val-display" id="val-torque">28.0 Nm</span></label>
+            <input type="range" id="input-torque" min="5" max="35" step="0.5" value="28.0" oninput="markManualEdit(); updateValues()">
+          </div>
+          <div class="form-group">
+            <label>Rotation: <span class="val-display" id="val-rotation">0.7 deg</span></label>
+            <input type="range" id="input-rotation" min="0.1" max="10.0" step="0.1" value="0.7" oninput="markManualEdit(); updateValues()">
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+          <button class="btn btn-primary" onclick="runVisualScan()" style="padding: 9px 6px; font-size: 11px;">
+            📷 Run Visual Scan
+          </button>
+          <button class="btn btn-torque" onclick="runTorqueTest()" style="padding: 9px 6px; font-size: 11px;">
+            🔧 Verify Torque
+          </button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 2px;">
+          <button class="btn btn-secondary" style="border-color: #00f0ff; color: #00f0ff; font-size: 11px;" onclick="scanSamplePhoto()">
+            ⚡ Test Sample Photo
+          </button>
+          <button class="btn btn-csv" onclick="exportInspectionCSV()" title="Export inspection data to CSV" style="font-size: 11px;">
+            📊 Export CSV
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Telemetry Panel (Figma Aligned) -->
+  <div class="right-hud">
+    <!-- Real-time Diagnosis Card -->
+    <div class="result-card">
+      <div class="result-header" style="margin-bottom: 10px;">
+        <span style="font-weight: 700; font-size: 13px; color: #38bdf8; letter-spacing: 0.5px;">XR INSPECTION TELEMETRY</span>
+      </div>
+
+      <!-- Status Badge Pill (Matching Figma) -->
+      <div id="res-badge" class="status-badge status-tight" style="margin-bottom: 14px; padding: 7px 12px; font-size: 11px; text-align: center; justify-content: center; width: 100%; box-sizing: border-box;">
+        ● ALL FASTENERS SECURED (CONFORMING)
+      </div>
+
+      <!-- Telemetry Rows Matching Figma -->
+      <div style="display: flex; flex-direction: column; gap: 9px; font-size: 13px; font-family: 'Rajdhani', sans-serif;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">
+          <span style="color: #94a3b8;">Target Fastener:</span>
+          <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace;"><span id="res-target" style="color: #38bdf8;">B01</span> (<span id="res-condition" style="color: #f8fafc;">TIGHT</span>)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">
+          <span style="color: #94a3b8;">Visual Standoff Gap:</span>
+          <strong id="res-gap-disp" style="color: #ef4444; font-family: 'JetBrains Mono', monospace;">0.0 mm</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">
+          <span style="color: #94a3b8;">Contact Area Score:</span>
+          <strong id="res-contact-disp" style="color: #f59e0b; font-family: 'JetBrains Mono', monospace;">0.96</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">
+          <span style="color: #94a3b8;">Residual Torque:</span>
+          <strong id="res-torque-disp" style="color: #ffffff; font-family: 'JetBrains Mono', monospace;">28.0 Nm</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 2px;">
+          <span style="color: #94a3b8;">Detection Confidence:</span>
+          <strong id="res-conf-disp" style="color: #10b981; font-family: 'JetBrains Mono', monospace;">94%</strong>
+        </div>
+      </div>
+
+      <!-- Preserved IDs for Script Logic -->
+      <span id="res-decision" style="display: none;">LIKELY_HEALTHY</span>
+
+      <div class="meter-container" style="margin-top: 12px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+          <span>Defect Probability</span>
+          <span id="val-prob" style="font-family: 'JetBrains Mono';">0.0%</span>
+        </div>
+        <div class="meter-bar">
+          <div id="bar-prob" class="meter-fill" style="width: 0%; background: #10b981;"></div>
+        </div>
+      </div>
+
+      <div class="meter-container">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+          <span id="lbl-conf">Tracking Confidence</span>
+          <span id="val-conf" style="font-family: 'JetBrains Mono';">91.0%</span>
+        </div>
+        <div class="meter-bar">
+          <div id="bar-conf" class="meter-fill" style="width: 91%; background: #00f0ff;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Photo Detection Card (Visible after scanning an RGB photo) -->
+    <div id="photo-preview-card">
+      <div class="result-header">
+        <span style="font-weight: 700; font-size: 13px; color: #00f0ff;">CV AR OVERLAY (RGB PHOTO)</span>
+        <span id="photo-bolts-count" style="font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono';">4 BOLTS</span>
+      </div>
+      <div class="photo-preview-wrapper" onclick="openPhotoModal()" title="Click to view full high-resolution image">
+        <img id="photo-preview-img" alt="CV Annotated RGB Photo">
+        <div class="photo-expand-badge">🔍 Click to Expand</div>
+      </div>
+      <div id="photo-detection-summary" style="margin-top: 8px; font-size: 12px; font-family: 'JetBrains Mono'; color: #cbd5e1;"></div>
+    </div>
+
+    <!-- XR Unity CAD Telemetry Card -->
+    <div id="xr-telemetry-card" class="result-card" style="display: none; border-color: rgba(192, 132, 252, 0.4); background: rgba(10, 16, 28, 0.92);">
+      <div class="result-header">
+        <span style="font-weight: 700; font-size: 13px; color: #c084fc;">XR UNITY CAD TELEMETRY</span>
+        <span id="xr-telemetry-count" style="font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono';">4 SCREWS</span>
+      </div>
+      <div id="xr-telemetry-assembly" style="font-size: 11px; color: #38bdf8; font-family: 'JetBrains Mono'; margin-bottom: 6px;"></div>
+      <div id="xr-telemetry-summary" style="font-size: 12px; font-family: 'JetBrains Mono'; color: #cbd5e1;"></div>
+    </div>
+
+    <!-- Spatial Defect Memory Log -->
+    <div class="result-card">
+      <div class="result-header">
+        <span style="font-weight: 700; font-size: 13px; color: #ef4444;">3D SPATIAL DEFECT MEMORY</span>
+        <button class="btn btn-danger" style="padding: 2px 8px; font-size: 11px;" onclick="clearDefects()">RESET</button>
+      </div>
+      <div id="spatial-log-list" class="spatial-log">
+        <div style="color: #64748b; text-align: center; padding: 12px;">No defects detected. All systems green.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Photo Lightbox Modal -->
+  <div id="photo-modal" onclick="closePhotoModal()" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.90); backdrop-filter: blur(12px); z-index: 2000; justify-content: center; align-items: center; cursor: pointer;">
+    <div style="position: relative; max-width: 94vw; max-height: 94vh; display: flex; flex-direction: column; align-items: center;" onclick="event.stopPropagation()">
+      <button onclick="closePhotoModal()" style="position: absolute; top: -16px; right: -16px; background: #ef4444; border: 2px solid white; color: white; border-radius: 50%; width: 36px; height: 36px; font-weight: bold; cursor: pointer; font-size: 18px; line-height: 1; box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); z-index: 2010;">✕</button>
+      <img id="photo-modal-img" src="" style="max-width: 90vw; max-height: 82vh; border-radius: 10px; border: 2px solid #00f0ff; box-shadow: 0 0 45px rgba(0, 240, 255, 0.45); object-fit: contain;">
+      <div style="margin-top: 10px; font-size: 13px; color: #cbd5e1; font-family: 'JetBrains Mono'; background: rgba(10, 16, 28, 0.85); padding: 4px 16px; border-radius: 20px; border: 1px solid rgba(0,240,255,0.3);">
+        Full-Resolution CV Annotated Workpiece Photo | Click ✕ or outside to close
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Controls Hint -->
+  <div class="controls-hint">
+    Left Click + Drag: Orbit Camera | Scroll: Zoom | Click Directly on Any Bolt to Select It
+  </div>
+
+  <!-- Interactive Action Toast Notification -->
+  <div id="toast-notification"></div>
+
+  <script>
+    // Global Toast Notification Helper
+    var toastTimeout = null;
+    function showToast(message, isSuccess = true) {
+      const toast = document.getElementById('toast-notification');
+      if (!toast) return;
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toast.innerHTML = `<span style="font-size: 16px;">${isSuccess ? '✅' : '⚠️'}</span> <span>${message}</span>`;
+      toast.style.borderColor = isSuccess ? '#10b981' : '#f59e0b';
+      toast.style.boxShadow = isSuccess ? '0 0 25px rgba(16, 185, 129, 0.45)' : '0 0 25px rgba(245, 158, 11, 0.45)';
+      toast.style.display = 'flex';
+      toast.style.opacity = '1';
+      toastTimeout = setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => { toast.style.display = 'none'; }, 300);
+      }, 3500);
+    }
+
+    // Bolt data matching holed_plate.obj bodies and coordinates
+    const bolts = {
+      'B01': {
+        washerName: 'Body1:1',
+        boltName: 'Body1:5',
+        worldPos: new THREE.Vector3(-0.5, -8.0, -4.0),
+        status: 'TIGHT',
+        gap: 0.0,
+        meshGroup: null,
+        washerMesh: null,
+        boltMesh: null,
+        halo: null,
+        origX: 0
+      },
+      'B02': {
+        washerName: 'Body1:2',
+        boltName: 'Body1:6',
+        worldPos: new THREE.Vector3(-0.5, 8.0, -4.0),
+        status: 'TIGHT',
+        gap: 0.0,
+        meshGroup: null,
+        washerMesh: null,
+        boltMesh: null,
+        halo: null,
+        origX: 0
+      },
+      'B03': {
+        washerName: 'Body1:3',
+        boltName: 'Body1:7',
+        worldPos: new THREE.Vector3(-0.5, -8.0, 4.0),
+        status: 'TIGHT',
+        gap: 0.0,
+        meshGroup: null,
+        washerMesh: null,
+        boltMesh: null,
+        halo: null,
+        origX: 0
+      },
+      'B04': {
+        washerName: 'Body1:4',
+        boltName: 'Body1:8',
+        worldPos: new THREE.Vector3(-0.5, 8.0, 4.0),
+        status: 'TIGHT',
+        gap: 0.0,
+        meshGroup: null,
+        washerMesh: null,
+        boltMesh: null,
+        halo: null,
+        origX: 0
+      }
+    };
+
+    let currentBolt = 'B01';
+    let isExploded = false;
+    const raycastMeshes = [];
+
+    // 1. Initialize Three.js Scene
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x060913);
+    scene.fog = new THREE.FogExp2(0x060913, 0.02);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(-25, 20, 22);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 0, 0);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.15);
+    scene.add(ambientLight);
+
+    // Front Key Light (Daylight studio illumination on workpiece front faces)
+    const frontLight = new THREE.DirectionalLight(0xffffff, 1.35);
+    frontLight.position.set(-5, 15, 25);
+    scene.add(frontLight);
+
+    const dirLight1 = new THREE.DirectionalLight(0x00f0ff, 1.5);
+    dirLight1.position.set(-20, 30, 20);
+    scene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(0xffa500, 0.7);
+    dirLight2.position.set(20, -20, -10);
+    scene.add(dirLight2);
+
+    const pointLight = new THREE.PointLight(0x38bdf8, 1.8, 50);
+    pointLight.position.set(0, 5, 15);
+    scene.add(pointLight);
+
+    // Grid Floor
+    let gridHelper = new THREE.GridHelper(50, 50, 0x00f0ff, 0x1e293b);
+    gridHelper.position.y = -12;
+    scene.add(gridHelper);
+
+    // Stored references for dynamic theme updates
+    let plateEdgeMesh = null;
+
+    // ==========================================
+    // 3D Scene Themes Management (High Contrast & Eye Pleasing)
+    // ==========================================
+    let currentTheme = 'cyberpunk';
+    const themeCache = {};
+
+    function updateGrid(centerColor, gridColor) {
+      if (gridHelper) {
+        scene.remove(gridHelper);
+        gridHelper.geometry.dispose();
+        gridHelper.material.dispose();
+      }
+      gridHelper = new THREE.GridHelper(50, 50, centerColor, gridColor);
+      gridHelper.position.y = -12;
+      scene.add(gridHelper);
+    }
+
+    function createCyberpunkPanorama() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      // Luminous Dark Sapphire Radial Aura (Soft backlight directly behind CAD model)
+      const vig = ctx.createRadialGradient(512, 256, 30, 512, 256, 520);
+      vig.addColorStop(0.0, '#182b4c'); // Illuminated dark sapphire aura behind CAD plate
+      vig.addColorStop(0.35, '#0e1a30'); // Deep midnight transition
+      vig.addColorStop(0.70, '#060a14'); // Deep cyber space
+      vig.addColorStop(1.0, '#020409'); // Outer vignette
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, 1024, 512);
+
+      // Fine holographic laser datum line along the horizon
+      const lineGrad = ctx.createLinearGradient(0, 256, 1024, 256);
+      lineGrad.addColorStop(0.0, 'rgba(0, 240, 255, 0.0)');
+      lineGrad.addColorStop(0.5, 'rgba(0, 240, 255, 0.25)');
+      lineGrad.addColorStop(1.0, 'rgba(0, 240, 255, 0.0)');
+      ctx.fillStyle = lineGrad;
+      ctx.fillRect(0, 255, 1024, 2);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      return tex;
+    }
+
+    function createAerospaceLabPanorama() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0.0, '#334155'); // Soft studio ceiling
+      grad.addColorStop(0.35, '#1e293b'); // Upper walls
+      grad.addColorStop(0.50, '#111827'); // Horizon
+      grad.addColorStop(0.51, '#0ea5e9'); // Cleanroom cyan laser datum
+      grad.addColorStop(0.55, '#0f172a'); // Floor transition
+      grad.addColorStop(1.0, '#090d16'); // Deep slate floor
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 512);
+
+      // Cleanroom overhead LED diffuser arrays
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      for (let x = 60; x < 1000; x += 160) {
+        ctx.fillRect(x, 35, 110, 60);
+      }
+
+      const vig = ctx.createRadialGradient(512, 256, 120, 512, 256, 600);
+      vig.addColorStop(0, 'rgba(14, 165, 233, 0.03)');
+      vig.addColorStop(1, 'rgba(0, 0, 0, 0.40)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, 1024, 512);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      return tex;
+    }
+
+    function createWorkshopPanorama() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0.0, '#1f2937'); // Steel rafters
+      grad.addColorStop(0.35, '#111827'); // Factory walls
+      grad.addColorStop(0.50, '#0d1117'); // Horizon
+      grad.addColorStop(0.51, '#f59e0b'); // Warning safety yellow floor boundary
+      grad.addColorStop(0.54, '#1f2937'); // Heavy concrete floor
+      grad.addColorStop(1.0, '#0a0d12'); // Deep floor shadow
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 512);
+
+      // Industrial high-bay sodium floodlights
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.16)';
+      for (let x = 90; x < 1000; x += 200) {
+        ctx.beginPath();
+        ctx.arc(x, 50, 40, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Cool assembly machinery indicator lights
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+      for (let x = 50; x < 1000; x += 140) {
+        ctx.fillRect(x, 215, 45, 30);
+      }
+
+      const vig = ctx.createRadialGradient(512, 256, 120, 512, 256, 600);
+      vig.addColorStop(0, 'rgba(245, 158, 11, 0.04)');
+      vig.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, 1024, 512);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      return tex;
+    }
+
+    function setTheme(themeName, showToastMsg = true) {
+      currentTheme = themeName;
+
+      // Update button active state
+      document.querySelectorAll('.theme-pill').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`theme-btn-${themeName}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (themeName === 'cyberpunk') {
+        if (!themeCache['cyberpunk']) {
+          themeCache['cyberpunk'] = createCyberpunkPanorama();
+        }
+        scene.background = themeCache['cyberpunk'];
+        scene.environment = themeCache['cyberpunk'];
+        scene.fog = new THREE.FogExp2(0x060a14, 0.008);
+        renderer.toneMappingExposure = 1.30;
+
+        // Machined Titanium Alloy plate (High visibility & contrast)
+        plateMaterial.color.setHex(0x8da4c4);
+        plateMaterial.metalness = 0.45;
+        plateMaterial.roughness = 0.30;
+
+        // Polished Chrome Bolts & Steel Washers
+        boltMaterial.color.setHex(0xffffff);
+        boltMaterial.metalness = 0.88;
+        boltMaterial.roughness = 0.12;
+
+        washerMaterial.color.setHex(0xb0bec5);
+        washerMaterial.metalness = 0.70;
+        washerMaterial.roughness = 0.22;
+
+        // Glowing Laser CAD Edge Lines
+        if (plateEdgeMesh) {
+          plateEdgeMesh.material.color.setHex(0x00f0ff);
+          plateEdgeMesh.material.opacity = 0.50;
+        }
+
+        ambientLight.color.setHex(0xffffff);
+        ambientLight.intensity = 1.15;
+
+        frontLight.color.setHex(0xffffff);
+        frontLight.intensity = 1.35;
+
+        dirLight1.color.setHex(0x00f0ff);
+        dirLight1.intensity = 1.6;
+
+        dirLight2.color.setHex(0xffa500);
+        dirLight2.intensity = 0.7;
+
+        pointLight.color.setHex(0x38bdf8);
+        pointLight.intensity = 1.8;
+
+        updateGrid(0x00f0ff, 0x1e293b);
+        if (showToastMsg) showToast("🎨 3D Scene: Cyberpunk Dark Theme Active", true);
+
+      } else if (themeName === 'aerospace') {
+        if (!themeCache['aerospace']) {
+          themeCache['aerospace'] = createAerospaceLabPanorama();
+        }
+        scene.background = themeCache['aerospace'];
+        scene.environment = themeCache['aerospace'];
+        scene.fog = new THREE.FogExp2(0x0a0f1d, 0.008);
+        renderer.toneMappingExposure = 1.35;
+
+        // Anodized Silver/Grey Alloy plate
+        if (plateMaterial) {
+          plateMaterial.color.setHex(0xa0aec0);
+          plateMaterial.metalness = 0.38;
+          plateMaterial.roughness = 0.36;
+        }
+
+        if (boltMaterial) {
+          boltMaterial.color.setHex(0xffffff);
+          boltMaterial.metalness = 0.90;
+          boltMaterial.roughness = 0.10;
+        }
+
+        if (plateEdgeMesh && plateEdgeMesh.material) {
+          plateEdgeMesh.material.color.setHex(0x64748b);
+          plateEdgeMesh.material.opacity = 0.40;
+        }
+
+        ambientLight.color.setHex(0xffffff);
+        ambientLight.intensity = 1.25;
+
+        frontLight.color.setHex(0xf8fafc);
+        frontLight.intensity = 1.6;
+
+        dirLight1.color.setHex(0xf8fafc);
+        dirLight1.intensity = 1.8;
+
+        dirLight2.color.setHex(0x94a3b8);
+        dirLight2.intensity = 1.0;
+
+        pointLight.color.setHex(0xe2e8f0);
+        pointLight.intensity = 1.2;
+
+        updateGrid(0x38bdf8, 0x334155);
+        if (showToastMsg) showToast("🔬 3D Scene: Clean Aerospace Lab Active", true);
+
+      } else if (themeName === 'workshop') {
+        if (!themeCache['workshop']) {
+          themeCache['workshop'] = createWorkshopPanorama();
+        }
+        scene.background = themeCache['workshop'];
+        scene.environment = themeCache['workshop'];
+        scene.fog = new THREE.FogExp2(0x0d1017, 0.012);
+        renderer.toneMappingExposure = 1.25;
+
+        // Industrial Ground Steel plate
+        if (plateMaterial) {
+          plateMaterial.color.setHex(0x94a3b8);
+          plateMaterial.metalness = 0.50;
+          plateMaterial.roughness = 0.28;
+        }
+
+        if (boltMaterial) {
+          boltMaterial.color.setHex(0xffffff);
+          boltMaterial.metalness = 0.85;
+          boltMaterial.roughness = 0.15;
+        }
+
+        if (plateEdgeMesh && plateEdgeMesh.material) {
+          plateEdgeMesh.material.color.setHex(0xf59e0b);
+          plateEdgeMesh.material.opacity = 0.45;
+        }
+
+        ambientLight.color.setHex(0xffedd5);
+        ambientLight.intensity = 1.1;
+
+        frontLight.color.setHex(0xfff7ed);
+        frontLight.intensity = 1.4;
+
+        dirLight1.color.setHex(0xffffff);
+        dirLight1.intensity = 1.6;
+
+        dirLight2.color.setHex(0xf59e0b);
+        dirLight2.intensity = 1.3;
+
+        pointLight.color.setHex(0x60a5fa);
+        pointLight.intensity = 1.4;
+
+        updateGrid(0xf59e0b, 0x374151);
+        if (showToastMsg) showToast("🏭 3D Scene: Factory Floor Active", true);
+      }
+    }
+
+    // Master CAD Assembly Group
+    const cadAssembly = new THREE.Group();
+    scene.add(cadAssembly);
+
+    // 2. Load holed_plate.obj with High-Contrast Aerospace Titanium Materials
+    const objLoader = new THREE.OBJLoader();
+
+    const plateMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8da4c4, // Machined Aerospace Titanium (Bright, clear, eye-pleasing!)
+      metalness: 0.45,
+      roughness: 0.30,
+      name: 'PlateSteel'
+    });
+
+    const boltMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff, // Brilliant Polished Chrome
+      metalness: 0.88,
+      roughness: 0.12,
+      name: 'BoltChrome'
+    });
+
+    const washerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xb0bec5, // Precision Steel Washer
+      metalness: 0.70,
+      roughness: 0.22,
+      name: 'WasherSteel'
+    });
+
+    const centerOffset = new THREE.Vector3(-0.5, 1.0, 1.0);
+
+    // Initialize default theme scene background without popping a toast on boot
+    setTheme('cyberpunk', false);
+
+    // Safety auto-dismiss loading overlay after max 2.0s
+    setTimeout(() => {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay && overlay.style.display !== 'none') {
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.style.display = 'none'; }, 300);
+      }
+    }, 2000);
+
+    objLoader.load(
+      '/static/holed_plate.obj',
+      function (obj) {
+        const meshMap = {};
+        obj.traverse((child) => {
+          if (child.isMesh) {
+            meshMap[child.name] = child;
+          }
+        });
+
+        const plate = meshMap['Body1'];
+        if (plate) {
+          plate.material = plateMaterial;
+          plate.position.add(centerOffset);
+
+          // Precision CAD Edge Lines (SolidWorks / Fusion 360 Style)
+          try {
+            const edgesGeom = new THREE.EdgesGeometry(plate.geometry, 24);
+            const edgesMat = new THREE.LineBasicMaterial({
+              color: 0x00f0ff,
+              transparent: true,
+              opacity: 0.50
+            });
+            plateEdgeMesh = new THREE.LineSegments(edgesGeom, edgesMat);
+            plate.add(plateEdgeMesh);
+          } catch (edgeErr) {
+            console.warn('EdgesGeometry not supported or failed:', edgeErr);
+          }
+
+          cadAssembly.add(plate);
+        }
+
+        const boltAxisConfigs = {
+          'B01': { cy: -9.0, cz: -5.0, tightXOffset: 0.0 },
+          'B02': { cy: 7.0, cz: -5.0, tightXOffset: 0.75 },
+          'B03': { cy: -9.0, cz: 3.0, tightXOffset: 0.50 },
+          'B04': { cy: 7.0, cz: 3.0, tightXOffset: 0.0 }
+        };
+
+        Object.keys(bolts).forEach((boltId) => {
+          const b = bolts[boltId];
+          const cfg = boltAxisConfigs[boltId];
+
+          const washer = meshMap[b.washerName];
+          const bolt = meshMap[b.boltName];
+
+          if (washer) {
+            washer.material = washerMaterial;
+            washer.position.copy(centerOffset);
+            cadAssembly.add(washer);
+            b.washerMesh = washer;
+            raycastMeshes.push(washer);
+            washer.userData = { boltId: boltId };
+          }
+
+          if (bolt) {
+            bolt.material = boltMaterial;
+            // Center the bolt's geometry so its local pivot is directly on its own cylindrical centerline,
+            // and normalize X so that the underside of the bolt head sits precisely at local X = 0.0
+            bolt.geometry.translate(cfg.tightXOffset, -cfg.cy, -cfg.cz);
+            b.baseTightX = centerOffset.x; // -0.50 for all bolts flush against plate face
+            b.targetDisplacementX = b.baseTightX;
+            bolt.position.set(b.baseTightX, cfg.cy + centerOffset.y, cfg.cz + centerOffset.z);
+            cadAssembly.add(bolt);
+            b.boltMesh = bolt;
+            raycastMeshes.push(bolt);
+            bolt.userData = { boltId: boltId };
+          }
+
+          const ringGeo = new THREE.RingGeometry(1.4, 1.8, 32);
+          const ringMat = new THREE.MeshBasicMaterial({
+            color: 0x10b981,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.85
+          });
+          const halo = new THREE.Mesh(ringGeo, ringMat);
+          halo.rotation.y = Math.PI / 2;
+          halo.position.set(centerOffset.x - 0.03, b.worldPos.y, b.worldPos.z);
+          cadAssembly.add(halo);
+          b.halo = halo;
+        });
+
+        // 3D Screwdriver Tool Model
+        const screwdriver = createScrewdriverMesh();
+        cadAssembly.add(screwdriver);
+        window.screwdriver = screwdriver;
+
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+          overlay.style.opacity = '0';
+          setTimeout(() => {
+            overlay.style.display = 'none';
+          }, 350);
+        }
+
+        fetchDefects();
+      },
+      undefined,
+      function (error) {
+        console.error('Error loading CAD OBJ:', error);
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.style.display = 'none';
+      }
+    );
+
+    // 3. Raycasting
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('click', (event) => {
+      if (event.target.closest('.panel') || event.target.closest('.right-hud') || event.target.closest('header')) return;
+
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(raycastMeshes);
+      if (intersects.length > 0) {
+        const hitId = intersects[0].object.userData.boltId;
+        if (hitId) selectBolt(hitId);
+      }
+    });
+
+    // 4. Animation Loop
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      TWEEN.update();
+
+      const elapsedTime = clock.getElapsedTime();
+      cadAssembly.rotation.x = Math.sin(elapsedTime * 0.2) * 0.05;
+
+      Object.keys(bolts).forEach((id) => {
+        const b = bolts[id];
+        if (b.halo) {
+          const s = 1.0 + 0.12 * Math.sin(elapsedTime * 4 + (id === 'B01' ? 0 : 1));
+          b.halo.scale.set(s, s, s);
+
+          // Subtle axial vibration for loose screws (stays firmly inside hole!)
+          if (b.status && b.status.includes('LOOSE') && b.boltMesh && !b.isBeingScrewed) {
+            const baseX = b.baseTightX !== undefined ? b.baseTightX : -0.5;
+            const targetX = b.targetDisplacementX !== undefined ? b.targetDisplacementX : (baseX - 0.45);
+            b.boltMesh.position.x = targetX + Math.sin(elapsedTime * 25) * 0.008;
+          }
+        }
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Precision 3D Screwdriver Tool Model Generator (Tip at local origin x = 0.0)
+    function createScrewdriverMesh() {
+      const tool = new THREE.Group();
+
+      const handleMat = new THREE.MeshStandardMaterial({
+        color: 0x0284c7, // Industrial electric blue
+        roughness: 0.35,
+        metalness: 0.20
+      });
+      const rubberMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a, // Charcoal rubber grip
+        roughness: 0.85,
+        metalness: 0.05
+      });
+      const chromeMat = new THREE.MeshStandardMaterial({
+        color: 0xf1f5f9, // Chrome vanadium steel shaft
+        metalness: 0.95,
+        roughness: 0.12
+      });
+      const bitMat = new THREE.MeshStandardMaterial({
+        color: 0x334155, // Hardened magnetic drive bit
+        metalness: 0.88,
+        roughness: 0.25
+      });
+      const collarMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b, // Black oxide quick-release chuck
+        metalness: 0.70,
+        roughness: 0.40
+      });
+
+      // 1. Magnetic Hex Drive Bit (tip at local x = 0.0, extends backwards to x = -0.8)
+      const bitGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.8, 6);
+      bitGeo.rotateZ(Math.PI / 2);
+      const bit = new THREE.Mesh(bitGeo, bitMat);
+      bit.position.x = -0.4;
+      tool.add(bit);
+
+      // Bit tapered tip meeting screw head at x = 0.0
+      const tipGeo = new THREE.ConeGeometry(0.24, 0.3, 6);
+      tipGeo.rotateZ(-Math.PI / 2);
+      const tip = new THREE.Mesh(tipGeo, bitMat);
+      tip.position.x = 0.0;
+      tool.add(tip);
+
+      // 2. Quick-Release Chuck Collar (from x = -1.5 to x = -0.8)
+      const chuckGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.7, 16);
+      chuckGeo.rotateZ(Math.PI / 2);
+      const chuck = new THREE.Mesh(chuckGeo, collarMat);
+      chuck.position.x = -1.15;
+      tool.add(chuck);
+
+      // 3. Chrome Vanadium Steel Shank (from x = -5.0 to x = -1.5)
+      const shankGeo = new THREE.CylinderGeometry(0.22, 0.22, 3.5, 16);
+      shankGeo.rotateZ(Math.PI / 2);
+      const shank = new THREE.Mesh(shankGeo, chromeMat);
+      shank.position.x = -3.25;
+      tool.add(shank);
+
+      // 4. Front Torque Clutch Selector Ring (from x = -5.8 to x = -5.0)
+      const collarGeo = new THREE.CylinderGeometry(0.72, 0.65, 0.8, 16);
+      collarGeo.rotateZ(Math.PI / 2);
+      const collar = new THREE.Mesh(collarGeo, collarMat);
+      collar.position.x = -5.4;
+      tool.add(collar);
+
+      // 5. Ergonomic Main Handle Body (from x = -9.8 to x = -5.8)
+      const handleGeo = new THREE.CylinderGeometry(0.78, 0.85, 4.0, 16);
+      handleGeo.rotateZ(Math.PI / 2);
+      const handle = new THREE.Mesh(handleGeo, handleMat);
+      handle.position.x = -7.8;
+      tool.add(handle);
+
+      // 6. Rubber Ergonomic Grip Rings
+      for (let i = 0; i < 4; i++) {
+        const ringGeo = new THREE.CylinderGeometry(0.86, 0.86, 0.35, 16);
+        ringGeo.rotateZ(Math.PI / 2);
+        const ring = new THREE.Mesh(ringGeo, rubberMat);
+        ring.position.x = -6.5 - i * 0.75;
+        tool.add(ring);
+      }
+
+      // 7. Rounded Handle End Cap (at x = -9.8)
+      const capGeo = new THREE.SphereGeometry(0.78, 16, 16);
+      const cap = new THREE.Mesh(capGeo, handleMat);
+      cap.position.x = -9.8;
+      tool.add(cap);
+
+      // 8. Worklight LED Spotlight attached to chuck illuminating screw head
+      const workLight = new THREE.SpotLight(0xffffff, 2.5, 12, Math.PI / 4, 0.3);
+      workLight.position.set(-1.2, 0.5, 0);
+      workLight.target.position.set(0.5, 0, 0);
+      tool.add(workLight);
+      tool.add(workLight.target);
+
+      tool.visible = false;
+      return tool;
+    }
+
+    // 5. Looseness Back-Out & Tightening Screw Animation
+    function animateBoltLooseness(boltId, gapMm, isTorquing = false) {
+      const b = bolts[boltId];
+      if (!b || !b.boltMesh || b.isBeingScrewed) return;
+
+      const baseX = b.baseTightX !== undefined ? b.baseTightX : -0.5;
+
+      // When loose, the screw head backs out slightly along X towards the camera (-X)
+      // For 7.5mm, backs out by 0.50 units, keeping the threaded shaft firmly inside hole!
+      const targetX = gapMm > 0 ? (baseX - (gapMm / 7.5) * 0.50) : baseX;
+      b.targetDisplacementX = targetX;
+
+      const currentRotX = b.boltMesh.rotation.x;
+      let targetRotX;
+      if (gapMm === 0.0) {
+        // Tightening: ONLY rotate clockwise! Never unwind anti-clockwise!
+        targetRotX = isTorquing ? (currentRotX + Math.PI * 2.0) : currentRotX;
+      } else {
+        // When loose, slight physical displacement offset
+        targetRotX = -(gapMm / 7.5) * Math.PI * 1.2;
+      }
+      const duration = (gapMm === 0.0 && isTorquing) ? 1800 : 1200;
+
+      new TWEEN.Tween(b.boltMesh.position)
+        .to({ x: targetX }, duration)
+        .easing(gapMm === 0.0 ? TWEEN.Easing.Cubic.InOut : TWEEN.Easing.Cubic.Out)
+        .start();
+
+      if (Math.abs(targetRotX - currentRotX) > 0.001) {
+        new TWEEN.Tween(b.boltMesh.rotation)
+          .to({ x: targetRotX }, duration)
+          .easing(gapMm === 0.0 ? TWEEN.Easing.Cubic.InOut : TWEEN.Easing.Cubic.Out)
+          .start();
+      }
+    }
+
+    // 6. Exploded View
+    function toggleExplodedView() {
+      isExploded = !isExploded;
+      const btn = document.getElementById('btn-explode');
+      btn.textContent = isExploded ? '🔄 Collapse Assembly' : '💥 Exploded Assembly View';
+
+      Object.keys(bolts).forEach((id) => {
+        const b = bolts[id];
+        if (!b) return;
+
+        const baseX = b.baseTightX !== undefined ? b.baseTightX : -0.5;
+
+        if (b.boltMesh) {
+          const targetX = isExploded ? (baseX - 4.5) : (b.targetDisplacementX !== undefined ? b.targetDisplacementX : baseX);
+          new TWEEN.Tween(b.boltMesh.position)
+            .to({ x: targetX }, 1400)
+            .easing(TWEEN.Easing.Back.Out)
+            .start();
+        }
+
+        if (b.washerMesh) {
+          const targetX = isExploded ? (centerOffset.x + 3.0) : centerOffset.x;
+          new TWEEN.Tween(b.washerMesh.position)
+            .to({ x: targetX }, 1400)
+            .easing(TWEEN.Easing.Back.Out)
+            .start();
+        }
+      });
+    }
+
+    // Accordion Toggle Handler
+    function toggleAccordion(id) {
+      const item = document.getElementById(id);
+      if (item) {
+        const willOpen = !item.classList.contains('active');
+        item.classList.toggle('active');
+        if (willOpen) {
+          setTimeout(() => {
+            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 180);
+        }
+      }
+    }
+
+    let photoDetectedBolts = {};
+
+    function markManualEdit() {
+      const badge = document.getElementById('sensor-source-badge');
+      if (badge) {
+        badge.textContent = 'MANUAL OVERRIDE';
+        badge.style.background = 'rgba(148, 163, 184, 0.15)';
+        badge.style.color = '#94a3b8';
+        badge.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+        badge.style.boxShadow = 'none';
+      }
+    }
+
+    function syncSensorsToBolt(id) {
+      const b = photoDetectedBolts[id];
+      if (!b) return;
+
+      // 1. Automatically populate Section 5 Optical / Depth Sensors from RGB image detection
+      document.getElementById('input-gap').value = b.gap_mm;
+      document.getElementById('input-contact').value = b.contact_score;
+      document.getElementById('input-vision').value = b.vision_quality;
+      if (document.getElementById('input-depth')) {
+        document.getElementById('input-depth').value = b.depth_quality !== undefined ? b.depth_quality : 0.88;
+      }
+
+      // 2. Automatically populate Section 6 Physical Torque Telemetry from correlated physics
+      if (b.estimated_torque_nm !== undefined) {
+        document.getElementById('input-torque').value = b.estimated_torque_nm;
+      }
+      if (b.estimated_rotation_deg !== undefined) {
+        document.getElementById('input-rotation').value = b.estimated_rotation_deg;
+      }
+
+      // 3. Update source badge to indicate active auto-sync from RGB photo
+      const badge = document.getElementById('sensor-source-badge');
+      if (badge) {
+        badge.textContent = `⚡ RGB PHOTO AUTO-SYNC (${id})`;
+        badge.style.background = 'rgba(0, 240, 255, 0.2)';
+        badge.style.color = '#00f0ff';
+        badge.style.borderColor = '#00f0ff';
+        badge.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.35)';
+      }
+
+      updateValues();
+
+      // 4. Synchronize XR Inspection Status card to this bolt's photo inference result
+      handleInspectionResult({
+        final_result: b.condition,
+        decision: b.decision,
+        loose_probability: b.loose_probability,
+        confidence: b.confidence
+      }, b.gap_mm);
+    }
+
+    // 7. Bolt Selection & Presets
+    function selectBolt(id) {
+      currentBolt = id;
+      document.getElementById('res-target').textContent = id;
+      const sdTarget = document.getElementById('btn-screwdriver-target');
+      if (sdTarget) sdTarget.textContent = id;
+      const wrenchTarget = document.getElementById('btn-wrench-target');
+      if (wrenchTarget) wrenchTarget.textContent = id;
+      document.querySelectorAll('.bolt-tab').forEach(el => {
+        el.classList.toggle('active', el.textContent === id);
+      });
+
+      const b = bolts[id];
+      if (b) {
+        new TWEEN.Tween(controls.target)
+          .to({ x: 0, y: b.worldPos.y, z: b.worldPos.z }, 800)
+          .easing(TWEEN.Easing.Quadratic.Out)
+          .start();
+      }
+
+      // If photo was analyzed, automatically update depth sensor values to this bolt!
+      if (photoDetectedBolts[id]) {
+        syncSensorsToBolt(id);
+      }
+    }
+
+    function updateValues() {
+      const gapVal = parseFloat(document.getElementById('input-gap').value).toFixed(1) + ' mm';
+      const contactVal = parseFloat(document.getElementById('input-contact').value).toFixed(2);
+      const torqueVal = parseFloat(document.getElementById('input-torque').value).toFixed(1) + ' Nm';
+      const rotVal = parseFloat(document.getElementById('input-rotation').value).toFixed(1) + ' deg';
+
+      document.getElementById('val-gap').textContent = gapVal;
+      document.getElementById('val-contact').textContent = contactVal;
+      document.getElementById('val-vision').textContent = parseFloat(document.getElementById('input-vision').value).toFixed(2);
+      if (document.getElementById('val-depth')) {
+        document.getElementById('val-depth').textContent = parseFloat(document.getElementById('input-depth').value).toFixed(2);
+      }
+      document.getElementById('val-torque').textContent = torqueVal;
+      document.getElementById('val-rotation').textContent = rotVal;
+
+      // Synchronize Figma Telemetry Rows
+      const resGapDisp = document.getElementById('res-gap-disp');
+      if (resGapDisp) {
+        resGapDisp.textContent = gapVal;
+        resGapDisp.style.color = parseFloat(gapVal) > 0 ? '#ef4444' : '#10b981';
+      }
+      const resContactDisp = document.getElementById('res-contact-disp');
+      if (resContactDisp) {
+        resContactDisp.textContent = contactVal;
+        resContactDisp.style.color = parseFloat(contactVal) < 0.85 ? '#f59e0b' : '#10b981';
+      }
+      const resTorqueDisp = document.getElementById('res-torque-disp');
+      if (resTorqueDisp) resTorqueDisp.textContent = torqueVal;
+    }
+
+    function applyPreset(type) {
+      markManualEdit();
+      if (type === 'tight') {
+        document.getElementById('input-gap').value = 0.0;
+        document.getElementById('input-contact').value = 0.96;
+        document.getElementById('input-vision').value = 0.94;
+        if (document.getElementById('input-depth')) document.getElementById('input-depth').value = 0.92;
+        document.getElementById('input-torque').value = 28.0;
+        document.getElementById('input-rotation').value = 0.7;
+      } else if (type === 'loose5') {
+        document.getElementById('input-gap').value = 5.0;
+        document.getElementById('input-contact').value = 0.78;
+        document.getElementById('input-vision').value = 0.90;
+        if (document.getElementById('input-depth')) document.getElementById('input-depth').value = 0.86;
+        document.getElementById('input-torque').value = 13.0;
+        document.getElementById('input-rotation').value = 3.4;
+      } else if (type === 'loose75') {
+        document.getElementById('input-gap').value = 7.5;
+        document.getElementById('input-contact').value = 0.62;
+        document.getElementById('input-vision').value = 0.88;
+        if (document.getElementById('input-depth')) document.getElementById('input-depth').value = 0.82;
+        document.getElementById('input-torque').value = 8.0;
+        document.getElementById('input-rotation').value = 5.6;
+      } else if (type === 'verify') {
+        document.getElementById('input-gap').value = 2.5;
+        document.getElementById('input-contact').value = 0.82;
+        document.getElementById('input-vision').value = 0.55;
+        if (document.getElementById('input-depth')) document.getElementById('input-depth').value = 0.65;
+        document.getElementById('input-torque').value = 16.0;
+        document.getElementById('input-rotation').value = 2.2;
+      }
+      updateValues();
+    }
+
+    // 8. RGB Camera Photo Upload & Scanning
+    async function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/inspect/photo', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        handlePhotoDetectionResults(data);
+      } catch (err) {
+        alert("Photo Inspection Error: " + err);
+      }
+    }
+
+    async function scanSamplePhoto() {
+      try {
+        const res = await fetch('/api/inspect/sample-photo?loose_bolts=B02,B03', { method: 'POST' });
+        const data = await res.json();
+        handlePhotoDetectionResults(data);
+      } catch (err) {
+        alert("Sample Photo Error: " + err);
+      }
+    }
+
+    function handlePhotoDetectionResults(data) {
+      // Show Photo Card
+      const card = document.getElementById('photo-preview-card');
+      card.style.display = 'block';
+
+      const img = document.getElementById('photo-preview-img');
+      img.src = data.annotated_image_base64;
+
+      photoDetectedBolts = {};
+      let summaryHtml = '';
+
+      // Reset all CAD bolt halos to neutral dimmed
+      Object.keys(bolts).forEach(id => {
+        if (bolts[id].halo) {
+          bolts[id].halo.material.color.setHex(0x334155);
+        }
+      });
+
+      if (data.total_bolts_detected === 0) {
+        summaryHtml = '<div style="color: #94a3b8; text-align: center; padding: 8px;">No bolts detected in image. Check camera view.</div>';
+      }
+
+      data.bolts.forEach(b => {
+        photoDetectedBolts[b.bolt_id] = b;
+        const isDefect = b.condition.includes('LOOSE');
+        const color = isDefect ? '#ef4444' : '#10b981';
+        summaryHtml += `<div class="photo-bolt-item" onclick="selectBolt('${b.bolt_id}')" title="Click to view ${b.bolt_id} in 3D & load depth telemetry" style="display:flex; justify-content:space-between; margin-top:4px; padding:5px 8px; border-radius:5px; cursor:pointer; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); transition:all 0.2s;">
+          <span>${b.bolt_id}: <strong style="color:${color}">${b.condition}</strong></span>
+          <span style="color:#38bdf8;">Gap: ${b.gap_mm}mm | Cont: ${b.contact_score}</span>
+        </div>`;
+
+        // Synchronize 3D CAD animation for each detected bolt!
+        const cadBolt = bolts[b.bolt_id];
+        if (cadBolt) {
+          cadBolt.status = b.condition;
+          if (cadBolt.halo) {
+            cadBolt.halo.material.color.setHex(isDefect ? 0xef4444 : 0x10b981);
+          }
+          animateBoltLooseness(b.bolt_id, b.gap_mm);
+        }
+      });
+
+      document.getElementById('photo-detection-summary').innerHTML = summaryHtml;
+
+      // Select first defective bolt, or currentBolt, or B01
+      const firstDefect = data.bolts.find(b => b.condition.includes('LOOSE'));
+      const targetBoltId = firstDefect ? firstDefect.bolt_id : (bolts[currentBolt] ? currentBolt : 'B01');
+      selectBolt(targetBoltId);
+    }
+
+    function openPhotoModal() {
+      const modal = document.getElementById('photo-modal');
+      const modalImg = document.getElementById('photo-modal-img');
+      const previewImg = document.getElementById('photo-preview-img');
+      if (modal && modalImg && previewImg && previewImg.src) {
+        modalImg.src = previewImg.src;
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closePhotoModal() {
+      const modal = document.getElementById('photo-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    // 8.B XR Unity CAD Telemetry (.json)
+    async function handleXRJsonUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const jsonPayload = JSON.parse(e.target.result);
+          const res = await fetch('/api/inspect/xr-telemetry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jsonPayload)
+          });
+          const data = await res.json();
+          handleXRTelemetryResults(data);
+        } catch (err) {
+          alert("XR Telemetry Error: " + err);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    async function loadFriendXRTelemetry() {
+      try {
+        const res = await fetch('/api/inspect/sample-xr-telemetry');
+        const data = await res.json();
+        handleXRTelemetryResults(data);
+      } catch (err) {
+        alert("Failed to load friend's XR telemetry: " + err);
+      }
+    }
+
+    function handleXRTelemetryResults(data) {
+      // Hide photo card if open, show XR telemetry card
+      const photoCard = document.getElementById('photo-preview-card');
+      if (photoCard) photoCard.style.display = 'none';
+
+      const card = document.getElementById('xr-telemetry-card');
+      card.style.display = 'block';
+
+      document.getElementById('xr-telemetry-count').textContent = `${data.total_bolts} SCREWS (${data.defects_detected} DEFECTS)`;
+      document.getElementById('xr-telemetry-assembly').textContent = `ASSEMBLY: ${data.assembly_name || 'holed_plate'}`;
+
+      photoDetectedBolts = {};
+      let summaryHtml = '';
+      data.bolts.forEach(b => {
+        photoDetectedBolts[b.bolt_id] = b;
+        const isDefect = b.condition.includes('LOOSE');
+        const color = isDefect ? '#ef4444' : '#10b981';
+        summaryHtml += `<div class="photo-bolt-item" onclick="selectBolt('${b.bolt_id}')" title="Click to view ${b.bolt_id} in 3D & load depth telemetry" style="display:flex; justify-content:space-between; margin-top:4px; padding:5px 8px; border-radius:5px; cursor:pointer; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); transition:all 0.2s;">
+          <span>${b.bolt_id} (${b.screw_id}): <strong style="color:${color}">${b.condition}</strong></span>
+          <span style="color:#38bdf8;">Gap: ${b.gap_mm}mm | Cont: ${b.contact_score}</span>
+        </div>`;
+
+        // Synchronize 3D CAD animation for each detected bolt!
+        const cadBolt = bolts[b.bolt_id];
+        if (cadBolt) {
+          cadBolt.status = b.condition;
+          if (cadBolt.halo) {
+            cadBolt.halo.material.color.setHex(isDefect ? 0xef4444 : 0x10b981);
+          }
+          animateBoltLooseness(b.bolt_id, b.gap_mm);
+        }
+      });
+
+      document.getElementById('xr-telemetry-summary').innerHTML = summaryHtml;
+
+      // Select first defective bolt (e.g. B02 or B03)
+      const firstDefect = data.bolts.find(b => b.condition.includes('LOOSE'));
+      const targetBoltId = firstDefect ? firstDefect.bolt_id : (bolts[currentBolt] ? currentBolt : 'B01');
+      selectBolt(targetBoltId);
+
+      // Update badge to XR Unity Stream
+      const badge = document.getElementById('sensor-source-badge');
+      if (badge) {
+        badge.textContent = `⚡ XR UNITY CAD STREAM (${targetBoltId})`;
+        badge.style.background = 'rgba(192, 132, 252, 0.2)';
+        badge.style.color = '#c084fc';
+        badge.style.borderColor = '#c084fc';
+        badge.style.boxShadow = '0 0 10px rgba(192, 132, 252, 0.35)';
+      }
+
+      fetchDefects();
+    }
+
+    // 9. Manual Visual & Torque Scans
+    async function runVisualScan() {
+      const b = bolts[currentBolt];
+      const gapVal = parseFloat(document.getElementById('input-gap').value);
+
+      const payload = {
+        equipment_id: "HOLED_PLATE_ASSEMBLY",
+        component_id: currentBolt,
+        position_3d: [0.0, b.worldPos.y, b.worldPos.z],
+        gap_mm: gapVal,
+        contact_score: parseFloat(document.getElementById('input-contact').value),
+        vision_quality: parseFloat(document.getElementById('input-vision').value),
+        depth_quality: parseFloat(document.getElementById('input-depth') ? document.getElementById('input-depth').value : 0.88),
+        registration_quality: 0.95
+      };
+
+      try {
+        const res = await fetch('/api/inspect/visual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        document.getElementById('lbl-conf').textContent = 'Tracking Confidence';
+        handleInspectionResult(data, gapVal);
+      } catch (err) {
+        alert("API Error: " + err);
+      }
+    }
+
+    async function runTorqueTest() {
+      const b = bolts[currentBolt];
+      const gapVal = parseFloat(document.getElementById('input-gap').value);
+
+      const payload = {
+        equipment_id: "HOLED_PLATE_ASSEMBLY",
+        component_id: currentBolt,
+        position_3d: [0.0, b.worldPos.y, b.worldPos.z],
+        gap_mm: gapVal,
+        contact_score: parseFloat(document.getElementById('input-contact').value),
+        torque_nm: parseFloat(document.getElementById('input-torque').value),
+        rotation_deg: parseFloat(document.getElementById('input-rotation').value),
+        vibration_feature: 0.12,
+        temperature_c: 30.0,
+        vision_quality: parseFloat(document.getElementById('input-vision').value),
+        depth_quality: parseFloat(document.getElementById('input-depth') ? document.getElementById('input-depth').value : 0.88),
+        registration_quality: 0.95
+      };
+
+      try {
+        const res = await fetch('/api/inspect/torque', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        document.getElementById('lbl-conf').textContent = 'Verification Confidence';
+        handleInspectionResult(data, gapVal);
+      } catch (err) {
+        alert("API Error: " + err);
+      }
+    }
+
+    function handleInspectionResult(data, gapVal) {
+      document.getElementById('res-condition').textContent = data.final_result;
+      document.getElementById('res-decision').textContent = data.decision;
+
+      const prob = (data.loose_probability * 100).toFixed(1);
+      const conf = (data.confidence * 100).toFixed(1);
+
+      document.getElementById('val-prob').textContent = prob + '%';
+      document.getElementById('bar-prob').style.width = prob + '%';
+
+      document.getElementById('val-conf').textContent = conf + '%';
+      document.getElementById('bar-conf').style.width = conf + '%';
+
+      const confDisp = document.getElementById('res-conf-disp');
+      if (confDisp) confDisp.textContent = conf + '%';
+
+      const badge = document.getElementById('res-badge');
+      badge.textContent = data.decision;
+
+      const bolt = bolts[currentBolt];
+      bolt.status = data.final_result;
+
+      if (data.decision === 'LIKELY_HEALTHY' || data.final_result === 'TIGHT') {
+        badge.className = 'status-badge status-tight';
+        badge.textContent = '● ALL FASTENERS SECURED (CONFORMING)';
+        document.getElementById('bar-prob').style.backgroundColor = '#10b981';
+        if (bolt.halo) bolt.halo.material.color.setHex(0x10b981);
+        animateBoltLooseness(currentBolt, 0.0);
+      } else if (data.decision === 'PHYSICAL_VERIFICATION') {
+        badge.className = 'status-badge status-verify';
+        badge.textContent = '● VERIFICATION REQUIRED';
+        document.getElementById('bar-prob').style.backgroundColor = '#f59e0b';
+        if (bolt.halo) bolt.halo.material.color.setHex(0xf59e0b);
+        animateBoltLooseness(currentBolt, gapVal);
+      } else {
+        badge.className = 'status-badge status-loose';
+        badge.textContent = '● DEFECT DETECTED (REJECT)';
+        document.getElementById('bar-prob').style.backgroundColor = '#ef4444';
+        if (bolt.halo) bolt.halo.material.color.setHex(0xef4444);
+        animateBoltLooseness(currentBolt, gapVal);
+      }
+
+      fetchDefects();
+    }
+
+    async function fetchDefects() {
+      try {
+        const res = await fetch('/api/spatial/defects');
+        const list = await res.json() || [];
+        const container = document.getElementById('spatial-log-list');
+
+        const badge = document.getElementById('res-badge');
+        if (badge) {
+          if (list.length > 0) {
+            badge.className = 'status-badge status-loose';
+            badge.textContent = `● ${list.length} DEFECTS DETECTED (REJECT)`;
+          } else {
+            badge.className = 'status-badge status-tight';
+            badge.textContent = '● ALL FASTENERS SECURED (CONFORMING)';
+          }
+        }
+
+        const defectIds = new Set(list.map(d => d.component_id));
+
+        // Synchronize halo colors for all bolts:
+        // Any bolt currently in defect memory -> RED (0xef4444)
+        // Any bolt NOT in defect memory that is seated/tight -> GREEN (0x10b981)
+        Object.keys(bolts).forEach(id => {
+          const bolt = bolts[id];
+          if (bolt && bolt.halo) {
+            if (defectIds.has(id)) {
+              bolt.halo.material.color.setHex(0xef4444);
+            } else if (bolt.status === 'TIGHT' || (photoDetectedBolts[id] && photoDetectedBolts[id].condition === 'TIGHT') || (!bolt.status || !bolt.status.includes('LOOSE'))) {
+              bolt.halo.material.color.setHex(0x10b981);
+            }
+          }
+        });
+
+        if (list.length === 0) {
+          container.innerHTML = '<div style="color: #64748b; text-align: center; padding: 12px;">No defects detected. All systems green.</div>';
+          return;
+        }
+
+        container.innerHTML = list.map(item => `
+          <div class="log-item">
+            <div style="display: flex; justify-content: space-between;">
+              <strong style="color: #f87171;">${item.component_id} - ${item.defect_type}</strong>
+              <span style="color: #94a3b8;">${new Date(item.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div style="color: #cbd5e1; margin-top: 2px;">Pos: [${item.position.x}, ${item.position.y}, ${item.position.z}]</div>
+            <div style="color: #38bdf8;">Prob: ${(item.probability * 100).toFixed(0)}% | Conf: ${(item.confidence * 100).toFixed(0)}% (${item.verification})</div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error("Failed to load defects:", err);
+      }
+    }
+
+    async function clearDefects() {
+      await fetch('/api/spatial/defects', { method: 'DELETE' });
+      Object.keys(bolts).forEach(id => {
+        if (bolts[id].halo) bolts[id].halo.material.color.setHex(0x10b981);
+        animateBoltLooseness(id, 0.0);
+      });
+      fetchDefects();
+    }
+
+    // ==========================================
+    // 10. 3D Screwdriver Audio Synthesis & Sound Effects
+    // ==========================================
+    function playToolCouplingClick() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1250, t);
+        osc.frequency.exponentialRampToValueAtTime(320, t + 0.04);
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.04);
+      } catch (e) {}
+    }
+
+    function playScrewdriverMotorSound(durationMs = 2200) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const durSec = durationMs / 1000.0;
+        const t = ctx.currentTime;
+
+        // Electric motor drive hum
+        const motorOsc = ctx.createOscillator();
+        const motorGain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        motorOsc.type = 'sawtooth';
+        motorOsc.frequency.setValueAtTime(140, t);
+        motorOsc.frequency.linearRampToValueAtTime(280, t + 0.25);
+        motorOsc.frequency.setValueAtTime(280, t + durSec - 0.25);
+        motorOsc.frequency.linearRampToValueAtTime(80, t + durSec);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(850, t);
+
+        motorGain.gain.setValueAtTime(0.01, t);
+        motorGain.gain.linearRampToValueAtTime(0.09, t + 0.12);
+        motorGain.gain.setValueAtTime(0.09, t + durSec - 0.2);
+        motorGain.gain.exponentialRampToValueAtTime(0.001, t + durSec);
+
+        motorOsc.connect(filter);
+        filter.connect(motorGain);
+        motorGain.connect(ctx.destination);
+
+        motorOsc.start(t);
+        motorOsc.stop(t + durSec);
+
+        // Precision gear ratchet clicks
+        const pulseCount = Math.floor(durSec * 16);
+        for (let i = 0; i < pulseCount; i++) {
+          const pt = t + 0.15 + (i / 16);
+          if (pt < t + durSec - 0.12) {
+            const pOsc = ctx.createOscillator();
+            const pGain = ctx.createGain();
+            pOsc.type = 'triangle';
+            pOsc.frequency.setValueAtTime(750 + (i % 4) * 110, pt);
+            pGain.gain.setValueAtTime(0.04, pt);
+            pGain.gain.exponentialRampToValueAtTime(0.001, pt + 0.025);
+            pOsc.connect(pGain);
+            pGain.connect(ctx.destination);
+            pOsc.start(pt);
+            pOsc.stop(pt + 0.025);
+          }
+        }
+      } catch (e) {}
+    }
+
+    function playSuccessChime() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const t = audioCtx.currentTime;
+        const chime = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        chime.type = 'sine';
+        chime.frequency.setValueAtTime(587.33, t); // D5
+        chime.frequency.exponentialRampToValueAtTime(880.0, t + 0.18); // A5
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+        chime.connect(gain);
+        gain.connect(audioCtx.destination);
+        chime.start(t);
+        chime.stop(t + 0.55);
+      } catch (e) {}
+    }
+
+    function playWrenchRatchetSound() {
+      playScrewdriverMotorSound(1200);
+      setTimeout(() => { playSuccessChime(); }, 1250);
+    }
+
+    // ==========================================
+    // 11. Interactive 3D Screwdriver Tool Controller
+    // ==========================================
+    let isScrewdriverActive = false;
+
+    async function useScrewdriverOnBolt(boltId) {
+      if (isScrewdriverActive) return;
+      const b = bolts[boltId];
+      if (!b || !b.boltMesh || !window.screwdriver) return;
+
+      const p = photoDetectedBolts[boltId];
+      const isLoose = (b.status && b.status.includes('LOOSE')) || (p && p.condition && p.condition.includes('LOOSE')) || (b.gap && b.gap > 0) || (b.targetDisplacementX && b.targetDisplacementX < b.baseTightX - 0.05);
+
+      if (!isLoose) {
+        b.status = 'TIGHT';
+        b.gap = 0.0;
+        if (b.halo) b.halo.material.color.setHex(0x10b981);
+        if (photoDetectedBolts[boltId]) {
+          photoDetectedBolts[boltId].condition = 'TIGHT';
+          photoDetectedBolts[boltId].decision = 'LIKELY_HEALTHY';
+          photoDetectedBolts[boltId].gap_mm = 0.0;
+          photoDetectedBolts[boltId].estimated_torque_nm = 28.0;
+        }
+        try {
+          await fetch(`/api/spatial/defects/${boltId}`, { method: 'DELETE' });
+        } catch (e) {}
+        await fetchDefects();
+        if (b.halo) b.halo.material.color.setHex(0x10b981);
+        showToast(`Fastener <strong>${boltId}</strong> is already firmly seated & torqued to 28.0 Nm spec! (Status: Green)`, true);
+        return;
+      }
+
+      isScrewdriverActive = true;
+      b.isBeingScrewed = true;
+
+      // 1. Pivot camera focus onto target bolt
+      selectBolt(boltId);
+      new TWEEN.Tween(controls.target)
+        .to({ x: -0.5, y: b.worldPos.y, z: b.worldPos.z }, 500)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .start();
+
+      const tool = window.screwdriver;
+      const boltMesh = b.boltMesh;
+
+      // Outer head surface of bolt
+      const currentBoltX = boltMesh.position.x;
+      const currentHeadX = currentBoltX - 0.663; // Outer front face of bolt head
+      const tightBoltX = b.baseTightX; // -0.50
+      const tightHeadX = tightBoltX - 0.663; // -1.163
+
+      const boltY = b.worldPos.y;
+      const boltZ = b.worldPos.z;
+
+      // 2. Position Screwdriver: start 5.5 units back along -X (towards camera)
+      tool.position.set(currentHeadX - 5.5, boltY, boltZ);
+      tool.rotation.set(0, 0, 0);
+      tool.visible = true;
+
+      showToast(`🪛 Screwdriver approaching fastener <strong>${boltId}</strong>...`, false);
+
+      // Phase 1: Tool approaches bolt head and couples bit into socket
+      await new Promise(resolve => {
+        new TWEEN.Tween(tool.position)
+          .to({ x: currentHeadX }, 600)
+          .easing(TWEEN.Easing.Cubic.Out)
+          .onComplete(resolve)
+          .start();
+      });
+
+      // Small metallic coupling click sound
+      playToolCouplingClick();
+      showToast(`🪛 Screwdriver bit coupled with <strong>${boltId}</strong>! Driving screw inward...`, false);
+      await new Promise(r => setTimeout(r, 200));
+
+      // Phase 2: Screwing inward into plate hole!
+      const driveDuration = 2200;
+      playScrewdriverMotorSound(driveDuration);
+
+      const startBoltRotX = boltMesh.rotation.x;
+      const startToolRotX = tool.rotation.x;
+      const turns = 4; // 4 full 360-degree rotations
+      const totalRotation = turns * Math.PI * 2;
+
+      // Animate Screwdriver position (follows bolt inward)
+      new TWEEN.Tween(tool.position)
+        .to({ x: tightHeadX }, driveDuration)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .start();
+
+      // Animate Screwdriver rotation
+      new TWEEN.Tween(tool.rotation)
+        .to({ x: startToolRotX + totalRotation }, driveDuration)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .start();
+
+      // Animate Bolt position inward into the plate hole
+      new TWEEN.Tween(boltMesh.position)
+        .to({ x: tightBoltX }, driveDuration)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .start();
+
+      // Animate Bolt rotation matching the screwdriver
+      new TWEEN.Tween(boltMesh.rotation)
+        .to({ x: startBoltRotX + totalRotation }, driveDuration)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .start();
+
+      // Dynamic UI telemetry ramp during the drive
+      const initialGap = p ? p.gap_mm : 7.5;
+      const initialTorque = p ? (p.estimated_torque_nm || 8.0) : 8.0;
+      const startTime = performance.now();
+
+      const rampInterval = setInterval(() => {
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(elapsed / driveDuration, 1.0);
+        const curGap = (initialGap * (1.0 - progress)).toFixed(1);
+        const curTorque = (initialTorque + (28.0 - initialTorque) * progress).toFixed(1);
+
+        const gapEl = document.getElementById('input-gap');
+        const torqEl = document.getElementById('input-torque');
+        const rotEl = document.getElementById('input-rotation');
+        if (gapEl) gapEl.value = curGap;
+        if (torqEl) torqEl.value = curTorque;
+        if (rotEl) rotEl.value = (0.7 + (1.0 - progress) * 5.0).toFixed(1);
+        updateValues();
+
+        if (progress >= 1.0) clearInterval(rampInterval);
+      }, 50);
+
+      await new Promise(r => setTimeout(r, driveDuration + 50));
+      clearInterval(rampInterval);
+
+      // Phase 3: Screwed Tight! Play success chime and update status
+      b.targetDisplacementX = tightBoltX;
+      b.status = 'TIGHT';
+      b.gap = 0.0;
+      if (b.halo) b.halo.material.color.setHex(0x10b981); // Emerald Green!
+
+      playSuccessChime();
+
+      // 1. Delete from backend spatial defect memory FIRST
+      try {
+        await fetch(`/api/spatial/defects/${boltId}`, { method: 'DELETE' });
+      } catch (e) {
+        console.warn("Could not delete defect:", e);
+      }
+
+      // 2. Update state in photoDetectedBolts
+      if (photoDetectedBolts[boltId]) {
+        photoDetectedBolts[boltId].condition = 'TIGHT';
+        photoDetectedBolts[boltId].gap_mm = 0.0;
+        photoDetectedBolts[boltId].contact_score = 0.96;
+        photoDetectedBolts[boltId].estimated_torque_nm = 28.0;
+        photoDetectedBolts[boltId].estimated_rotation_deg = 0.7;
+        photoDetectedBolts[boltId].decision = 'LIKELY_HEALTHY';
+        photoDetectedBolts[boltId].loose_probability = 0.0;
+        photoDetectedBolts[boltId].confidence = 0.98;
+
+        let summaryHtml = '';
+        Object.keys(photoDetectedBolts).forEach(id => {
+          const item = photoDetectedBolts[id];
+          const isDefect = item.condition.includes('LOOSE');
+          const color = isDefect ? '#ef4444' : '#10b981';
+          const label = isDefect ? item.condition : (item.estimated_torque_nm >= 28 ? 'TIGHT (SCREWED)' : 'TIGHT');
+          summaryHtml += `<div class="photo-bolt-item" onclick="selectBolt('${id}')" title="Click to view ${id} in 3D" style="display:flex; justify-content:space-between; margin-top:4px; padding:5px 8px; border-radius:5px; cursor:pointer; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); transition:all 0.2s;">
+            <span>${id}: <strong style="color:${color}">${label}</strong></span>
+            <span style="color:#38bdf8;">Gap: ${item.gap_mm}mm | Torq: ${item.estimated_torque_nm}Nm</span>
+          </div>`;
+        });
+        const summaryEl = document.getElementById('photo-detection-summary');
+        if (summaryEl) summaryEl.innerHTML = summaryHtml;
+      }
+
+      // 3. Update UI inputs & Status Card
+      document.getElementById('input-gap').value = 0.0;
+      document.getElementById('input-contact').value = 0.96;
+      document.getElementById('input-torque').value = 28.0;
+      document.getElementById('input-rotation').value = 0.7;
+      updateValues();
+
+      handleInspectionResult({
+        final_result: 'TIGHT',
+        decision: 'LIKELY_HEALTHY',
+        loose_probability: 0.0,
+        confidence: 0.98
+      }, 0.0);
+
+      // 4. Force halo to green!
+      if (b.halo) b.halo.material.color.setHex(0x10b981);
+
+      // 5. Refresh spatial defects list
+      await fetchDefects();
+
+      // 6. Double confirm halo stays green!
+      if (b.halo) b.halo.material.color.setHex(0x10b981);
+
+      showToast(`✅ Fastener <strong>${boltId}</strong> screwed flush into plate & torqued to 28.0 Nm!`, true);
+
+      // Phase 4: Disengage and retract screwdriver
+      await new Promise(r => setTimeout(r, 400));
+      await new Promise(resolve => {
+        new TWEEN.Tween(tool.position)
+          .to({ x: tightHeadX - 5.5 }, 500)
+          .easing(TWEEN.Easing.Cubic.In)
+          .onComplete(resolve)
+          .start();
+      });
+
+      tool.visible = false;
+      isScrewdriverActive = false;
+      b.isBeingScrewed = false;
+    }
+
+    function useScrewdriverOnSelected() {
+      useScrewdriverOnBolt(currentBolt);
+    }
+
+    async function autoScrewdriverAllDefects() {
+      if (isScrewdriverActive) return;
+
+      const defectIds = Object.keys(bolts).filter(id => {
+        const b = bolts[id];
+        const p = photoDetectedBolts[id];
+        return (b && b.status && b.status.includes('LOOSE')) || (p && p.condition && p.condition.includes('LOOSE')) || (b.gap && b.gap > 0);
+      });
+
+      if (defectIds.length === 0) {
+        Object.keys(bolts).forEach(id => {
+          if (bolts[id].halo) bolts[id].halo.material.color.setHex(0x10b981);
+        });
+        showToast('All fasteners are already conforming and screwed tight to 28.0 Nm spec!', true);
+        return;
+      }
+
+      showToast(`⚡ Screwdriver Auto-Remediation: Tightening ${defectIds.length} defective screw(s) in sequence...`, false);
+
+      for (let i = 0; i < defectIds.length; i++) {
+        await useScrewdriverOnBolt(defectIds[i]);
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // Explicitly ensure all halos are emerald green at the end of auto remediation!
+      Object.keys(bolts).forEach(id => {
+        if (bolts[id].halo) bolts[id].halo.material.color.setHex(0x10b981);
+      });
+
+      showToast(`🎉 Remediation Complete! All 4 screws are coupled, flush inside the plate, and verified at 28.0 Nm.`, true);
+    }
+
+    // Backward-compatibility wrappers for torque tests
+    async function torqueBolt(boltId, isSilent = false) {
+      await useScrewdriverOnBolt(boltId);
+    }
+
+    function torqueSelectedBolt() {
+      useScrewdriverOnSelected();
+    }
+
+    async function autoTorqueAllDefects() {
+      await autoScrewdriverAllDefects();
+    }
+
+    // ==========================================
+    // 12. Certified QA PDF Inspection Report
+    // ==========================================
+    function generateInspectionPDF() {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("jsPDF library is loading, please try again in a few seconds.");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Compile Bolt Rows
+      const boltList = ['B01', 'B02', 'B03', 'B04'].map(id => {
+        const p = photoDetectedBolts[id];
+        const b = bolts[id];
+        const cond = p ? p.condition : (b ? b.status : 'TIGHT');
+        const gap = p ? p.gap_mm : (b ? b.gap : 0.0);
+        const contact = p ? p.contact_score : (gap > 0 ? 0.62 : 0.96);
+        const torque = p ? (p.estimated_torque_nm || (gap > 0 ? 8.0 : 28.0)) : (gap > 0 ? 8.0 : 28.0);
+        const conf = p ? (p.confidence * 100).toFixed(0) + '%' : '94%';
+        const prob = p ? (p.loose_probability * 100).toFixed(0) + '%' : (gap > 0 ? '100%' : '0%');
+        const isDefect = cond.includes('LOOSE');
+        return {
+          id: id,
+          pos: b ? `[${b.worldPos.x.toFixed(1)}, ${b.worldPos.y.toFixed(1)}, ${b.worldPos.z.toFixed(1)}]` : 'N/A',
+          gap: gap.toFixed(1) + ' mm',
+          contact: contact.toFixed(2),
+          torque: torque.toFixed(1) + ' Nm',
+          conf: conf,
+          prob: prob,
+          status: isDefect ? 'FAIL (LOOSE)' : 'PASS (TIGHT)',
+          isDefect: isDefect
+        };
+      });
+
+      const totalBolts = boltList.length;
+      const totalDefects = boltList.filter(b => b.isDefect).length;
+      const isConforming = totalDefects === 0;
+      const now = new Date();
+      const batchId = 'WP-' + now.toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
+
+      // --- Header Navy Banner ---
+      doc.setFillColor(10, 16, 28);
+      doc.rect(0, 0, pageWidth, 28, 'F');
+
+      doc.setDrawColor(0, 240, 255);
+      doc.setLineWidth(1.2);
+      doc.line(0, 28, pageWidth, 28);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(0, 240, 255);
+      doc.text("XR FASTENER INSPECTION & DIGITAL TWIN SYSTEM", 14, 12);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text("QUALITY ASSURANCE & FASTENER INTEGRITY COMPLIANCE REPORT", 14, 19);
+
+      // --- Meta Data Grid ---
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      doc.setFont('helvetica', 'bold');
+      doc.text("INSPECTION METADATA:", 14, 36);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+
+      const col1X = 14;
+      const col2X = 110;
+
+      doc.text(`Workpiece Assembly: HOLED_PLATE (4-BOLT MATRIX)`, col1X, 42);
+      doc.text(`Report & Batch ID: ${batchId}`, col1X, 47);
+      doc.text(`Inspection Date/Time: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, col1X, 52);
+
+      doc.text(`Inspection Station: XR Automated Robotic Cell #1`, col2X, 42);
+      doc.text(`Vision Sensor: RGB Camera + Depth Arc Triangulation`, col2X, 47);
+      doc.text(`Torque Standard Spec: 28.0 Nm (Nominal)`, col2X, 52);
+
+      // --- Overall Compliance Banner ---
+      if (isConforming) {
+        doc.setFillColor(240, 253, 244);
+        doc.setDrawColor(16, 185, 129);
+        doc.roundedRect(14, 57, pageWidth - 28, 13, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(21, 128, 61);
+        doc.text("QUALITY STATUS: CONFORMING - ASSEMBLY APPROVED (ALL FASTENERS SECURED)", 20, 65);
+      } else {
+        doc.setFillColor(254, 242, 242);
+        doc.setDrawColor(239, 68, 68);
+        doc.roundedRect(14, 57, pageWidth - 28, 13, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(185, 28, 28);
+        doc.text(`QUALITY STATUS: REJECT - ${totalDefects} FASTENER(S) LOOSE (RE-TORQUE REQUIRED)`, 20, 65);
+      }
+
+      // --- AutoTable of Fasteners ---
+      const tableRows = boltList.map(b => [
+        b.id,
+        b.pos,
+        b.gap,
+        b.contact,
+        b.torque,
+        b.conf,
+        b.prob,
+        b.status
+      ]);
+
+      doc.autoTable({
+        startY: 74,
+        head: [['Bolt ID', 'CAD Coordinate (X,Y,Z)', 'Visual Gap', 'Contact Score', 'Est. Torque', 'Confidence', 'Defect Prob', 'Decision Status']],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [0, 240, 255],
+          fontStyle: 'bold',
+          fontSize: 8.5
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.8,
+          textColor: [30, 41, 59]
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', halign: 'center' },
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center' },
+          5: { halign: 'center' },
+          6: { halign: 'center' },
+          7: { fontStyle: 'bold', halign: 'center' }
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body') {
+            const rowData = boltList[data.row.index];
+            if (rowData && rowData.isDefect) {
+              if (data.column.index === 7) {
+                data.cell.styles.textColor = [220, 38, 38];
+              }
+              data.cell.styles.fillColor = [254, 242, 242];
+            } else if (rowData) {
+              if (data.column.index === 7) {
+                data.cell.styles.textColor = [22, 163, 74];
+              }
+            }
+          }
+        }
+      });
+
+      // --- Photographic & CAD Visual Evidence Section ---
+      let currentY = doc.lastAutoTable.finalY + 8;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text("INSPECTION VISUAL EVIDENCE & DIGITAL TWIN TELEMETRY:", 14, currentY);
+      currentY += 4;
+
+      const imgWidth = 86;
+      const imgHeight = 54;
+
+      // 1. Capture Full 3D CAD Twin Snapshot from Three.js WebGL Renderer (Isometric Full Assembly Overview)
+      try {
+        const savedCamPos = camera.position.clone();
+        const savedTarget = controls.target.clone();
+        const toolWasVis = window.screwdriver ? window.screwdriver.visible : false;
+        if (window.screwdriver) window.screwdriver.visible = false;
+
+        // Position camera to frame the full workpiece plate and all 4 fasteners
+        camera.position.set(-27, 21, 23);
+        controls.target.set(-0.5, 1.0, 1.0);
+        camera.lookAt(-0.5, 1.0, 1.0);
+        camera.updateProjectionMatrix();
+
+        renderer.render(scene, camera);
+        const cadSnapshot = renderer.domElement.toDataURL('image/jpeg', 0.95);
+
+        // Restore active user view and screwdriver visibility
+        if (window.screwdriver) window.screwdriver.visible = toolWasVis;
+        camera.position.copy(savedCamPos);
+        controls.target.copy(savedTarget);
+        camera.lookAt(savedTarget);
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+
+        doc.addImage(cadSnapshot, 'JPEG', 14, currentY, imgWidth, imgHeight);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(100, 116, 139);
+        doc.text("Figure 1: Full 3D CAD Assembly & Fastener Digital Twin", 14, currentY + imgHeight + 4);
+      } catch (err) {
+        console.warn("Could not capture CAD snapshot:", err);
+      }
+
+      // 2. Capture Annotated RGB Photo if present
+      const previewImg = document.getElementById('photo-preview-img');
+      if (previewImg && previewImg.src && previewImg.src.startsWith('data:image')) {
+        try {
+          doc.addImage(previewImg.src, 'JPEG', 106, currentY, imgWidth, imgHeight);
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(100, 116, 139);
+          doc.text("Figure 2: Computer Vision Annotated Workpiece", 106, currentY + imgHeight + 4);
+        } catch (e) {
+          console.warn("Could not embed camera photo:", e);
+        }
+      }
+
+      // --- Digital Signature & Compliance Sign-Off Box ---
+      const signY = pageHeight - 24;
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.5);
+      doc.line(14, signY, pageWidth - 14, signY);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text("Quality Control Inspector:", pageWidth - 70, signY + 6);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(16, 185, 129);
+      doc.text("AUTOMATED XR VISION CELL (VERIFIED)", pageWidth - 70, signY + 12);
+
+      // Download PDF
+      const filename = `XR_QA_Inspection_Report_${batchId}.pdf`;
+      doc.save(filename);
+      showToast(`📄 Certified QA PDF Report generated: <strong>${filename}</strong>`, true);
+    }
+
+    // ==========================================
+    // 13. CSV Inspection Data Export
+    // ==========================================
+    function exportInspectionCSV() {
+      const now = new Date();
+      const batchId = 'WP-' + now.toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
+
+      let csv = "Timestamp,Workpiece,Batch_ID,Bolt_ID,Condition,Visual_Gap_mm,Contact_Score,Estimated_Torque_Nm,Confidence_Pct,Defect_Probability_Pct,Compliance_Decision,Action_Required\n";
+
+      ['B01', 'B02', 'B03', 'B04'].forEach(id => {
+        const p = photoDetectedBolts[id];
+        const b = bolts[id];
+        const cond = p ? p.condition : (b ? b.status : 'TIGHT');
+        const gap = p ? p.gap_mm : (b ? b.gap : 0.0);
+        const contact = p ? p.contact_score : (gap > 0 ? 0.62 : 0.96);
+        const torque = p ? (p.estimated_torque_nm || (gap > 0 ? 8.0 : 28.0)) : (gap > 0 ? 8.0 : 28.0);
+        const conf = p ? (p.confidence * 100).toFixed(1) : '94.0';
+        const prob = p ? (p.loose_probability * 100).toFixed(1) : (gap > 0 ? '100.0' : '0.0');
+        const isDefect = cond.includes('LOOSE');
+        const decision = isDefect ? 'CONFIRMED_DEFECT' : 'LIKELY_HEALTHY';
+        const action = isDefect ? 'RE-TORQUE TO 28 NM SPEC' : 'CONFORMING - NO ACTION';
+
+        csv += `"${now.toISOString()}","HOLED_PLATE","${batchId}","${id}","${cond}",${gap.toFixed(2)},${contact.toFixed(2)},${torque.toFixed(1)},${conf},${prob},"${decision}","${action}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `XR_Inspection_Telemetry_${batchId}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast(`📊 Telemetry CSV data exported: <strong>XR_Inspection_Telemetry_${batchId}.csv</strong>`, true);
+    }
+  </script>
+</body>
+</html>

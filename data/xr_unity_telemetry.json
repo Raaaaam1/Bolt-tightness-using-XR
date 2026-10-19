@@ -1,0 +1,121 @@
+{
+    "assembly_name": "holed_plate (Assembly)",
+    "screws": [
+        {
+            "screw_id": "Screw_001",
+            "object_name": "Formed Hex Screw ANSI B18.2.3.2M - M10x1.5 x 25 Steel Grade 2 Plain v1:1",
+            "position_relative_to_assembly": {
+                "x": 0.0,
+                "y": -0.09000000357627869,
+                "z": -0.05000000074505806
+            },
+            "world_position": {
+                "x": 0.0,
+                "y": -0.09000000357627869,
+                "z": -0.05000000074505806
+            },
+            "rotation_relative_to_assembly": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "world_rotation": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "local_scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "screw_id": "Screw_002",
+            "object_name": "Formed Hex Screw ANSI B18.2.3.2M - M10x1.5 x 25 Steel Grade 2 Plain v1:2",
+            "position_relative_to_assembly": {
+                "x": 0.007500000298023224,
+                "y": 0.07000000029802322,
+                "z": -0.05000000074505806
+            },
+            "world_position": {
+                "x": 0.007500000298023224,
+                "y": 0.07000000029802322,
+                "z": -0.05000000074505806
+            },
+            "rotation_relative_to_assembly": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "world_rotation": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "local_scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "screw_id": "Screw_003",
+            "object_name": "Formed Hex Screw ANSI B18.2.3.2M - M10x1.5 x 25 Steel Grade 2 Plain v1:3",
+            "position_relative_to_assembly": {
+                "x": 0.005000000353902578,
+                "y": -0.09000000357627869,
+                "z": 0.030000001192092896
+            },
+            "world_position": {
+                "x": 0.005000000353902578,
+                "y": -0.09000000357627869,
+                "z": 0.030000001192092896
+            },
+            "rotation_relative_to_assembly": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "world_rotation": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "local_scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "screw_id": "Screw_004",
+            "object_name": "Formed Hex Screw ANSI B18.2.3.2M - M10x1.5 x 25 Steel Grade 2 Plain v1:4",
+            "position_relative_to_assembly": {
+                "x": 0.0,
+                "y": 0.07000000029802322,
+                "z": 0.030000001192092896
+            },
+            "world_position": {
+                "x": 0.0,
+                "y": 0.07000000029802322,
+                "z": 0.030000001192092896
+            },
+            "rotation_relative_to_assembly": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "world_rotation": {
+                "x": -7.016710397255007e-15,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "local_scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    ]
+}
