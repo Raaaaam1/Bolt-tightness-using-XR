@@ -381,16 +381,14 @@ def generate_synthetic_plate_photo(
 
         if is_loose:
             # Differentiate moderate 5.0mm looseness vs severe 7.5mm looseness
+            cv2.circle(image, (bx, by), 40, (160, 165, 170), -1)
+            cv2.circle(image, (bx, by), 28, (200, 205, 210), -1)
             if b["id"] == "B02":
-                # Moderate standoff crescent (~65 deg arc) -> LOOSE_5MM (5.0mm)
-                cv2.circle(image, (bx, by), 40, (160, 165, 170), -1)
-                cv2.circle(image, (bx, by), 28, (200, 205, 210), -1)
-                cv2.ellipse(image, (bx, by), (43, 43), 0, 40, 105, (15, 15, 20), 8)
+                # Moderate standoff crescent (~65-75 deg arc) -> LOOSE_5MM (5.0mm)
+                cv2.ellipse(image, (bx, by), (42, 42), 0, 40, 105, (15, 15, 20), 6)
             else:
-                # Severe lift-off crescent (~140 deg arc) -> LOOSE_7_5MM (7.5mm)
-                cv2.circle(image, (bx, by), 40, (160, 165, 170), -1)
-                cv2.circle(image, (bx, by), 28, (200, 205, 210), -1)
-                cv2.ellipse(image, (bx, by), (43, 43), 0, 10, 160, (15, 15, 20), 9)
+                # Severe lift-off crescent (~115-140 deg arc) -> LOOSE_7_5MM (7.5mm)
+                cv2.ellipse(image, (bx, by), (42, 42), 0, 30, 145, (15, 15, 20), 6)
         else:
             cv2.circle(image, (bx, by), 40, (160, 165, 170), -1)
             cv2.circle(image, (bx, by), 28, (200, 205, 210), -1)
