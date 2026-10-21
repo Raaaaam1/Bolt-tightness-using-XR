@@ -40,7 +40,17 @@ def process_rgb_photo(
     else:
         raise ValueError("Unsupported image source type")
 
+    if img is None:
+        raise ValueError("Could not decode image. Please ensure the file is a valid JPG, PNG, or WEBP image.")
+
     h, w = img.shape[:2]
+    # Automatically downscale ultra-high-res phone images to prevent memory spikes on cloud instances
+    max_dim = 1200
+    if max(h, w) > max_dim:
+        scale = max_dim / float(max(h, w))
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        h, w = img.shape[:2]
+
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     filtered = cv2.bilateralFilter(gray, 9, 75, 75)
     edges = cv2.Canny(filtered, 50, 150)
