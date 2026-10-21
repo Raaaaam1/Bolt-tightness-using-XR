@@ -182,7 +182,7 @@ def api_inspect_sample_photo(loose_bolt: str = None, loose_bolts: str = None):
             "B04": (-0.5, 8.0, 4.0)
         }
 
-        # Log defects to spatial memory
+        # Synchronize defects to spatial memory
         for b in res.get("bolts", []):
             if "LOOSE" in b["condition"].upper():
                 x, y, z = cad_coords.get(b["bolt_id"], (-0.5, 0.0, 0.0))
@@ -197,6 +197,11 @@ def api_inspect_sample_photo(loose_bolt: str = None, loose_bolts: str = None):
                     confidence=b["confidence"],
                     verification="RGB_CAMERA_SCAN"
                 )
+            else:
+                try:
+                    clear_single_defect(b["bolt_id"])
+                except Exception:
+                    pass
 
         return res
     except Exception as e:

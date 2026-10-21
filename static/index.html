@@ -1077,7 +1077,7 @@
         washerName: 'Body1:1',
         boltName: 'Body1:5',
         worldPos: new THREE.Vector3(-0.5, -8.0, -4.0),
-        status: 'TIGHT',
+        status: 'PENDING',
         gap: 0.0,
         meshGroup: null,
         washerMesh: null,
@@ -1089,7 +1089,7 @@
         washerName: 'Body1:2',
         boltName: 'Body1:6',
         worldPos: new THREE.Vector3(-0.5, 8.0, -4.0),
-        status: 'TIGHT',
+        status: 'PENDING',
         gap: 0.0,
         meshGroup: null,
         washerMesh: null,
@@ -1101,7 +1101,7 @@
         washerName: 'Body1:3',
         boltName: 'Body1:7',
         worldPos: new THREE.Vector3(-0.5, -8.0, 4.0),
-        status: 'TIGHT',
+        status: 'PENDING',
         gap: 0.0,
         meshGroup: null,
         washerMesh: null,
@@ -1113,7 +1113,7 @@
         washerName: 'Body1:4',
         boltName: 'Body1:8',
         worldPos: new THREE.Vector3(-0.5, 8.0, 4.0),
-        status: 'TIGHT',
+        status: 'PENDING',
         gap: 0.0,
         meshGroup: null,
         washerMesh: null,
@@ -1557,7 +1557,7 @@
 
           const ringGeo = new THREE.RingGeometry(1.4, 1.8, 32);
           const ringMat = new THREE.MeshBasicMaterial({
-            color: 0x10b981,
+            color: 0xb45309, // Brown by default (Awaiting photo inspection)
             side: THREE.DoubleSide,
             transparent: true,
             opacity: 0.85
@@ -2059,12 +2059,30 @@
     }
 
     async function scanSamplePhoto() {
+      const btn = document.querySelector('button[onclick="scanSamplePhoto()"]');
+      const origText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '⏳ SCANNING...';
+        btn.disabled = true;
+      }
       try {
         const res = await fetch('/api/inspect/sample-photo?loose_bolts=B02,B03', { method: 'POST' });
+        if (!res.ok) {
+          const text = await res.text();
+          if (res.status === 502 || res.status === 504 || text.includes('<!DOCTYPE')) {
+            throw new Error("Render free server was sleeping and is waking up. Please wait 10 seconds and try again!");
+          }
+          throw new Error(`Server returned HTTP ${res.status}`);
+        }
         const data = await res.json();
         handlePhotoDetectionResults(data);
       } catch (err) {
-        alert("Sample Photo Error: " + err);
+        alert("Sample Photo Error: " + err.message);
+      } finally {
+        if (btn) {
+          btn.innerHTML = origText;
+          btn.disabled = false;
+        }
       }
     }
 
@@ -2079,10 +2097,17 @@
       photoDetectedBolts = {};
       let summaryHtml = '';
 
-      // Reset all CAD bolt halos to neutral dimmed
+      // 1. Identify which bolts were detected in this photo
+      const detectedIds = new Set(data.bolts.map(b => b.bolt_id));
+
+      // 2. Fasteners NOT in this photo stay in default BROWN rings (uninspected)
       Object.keys(bolts).forEach(id => {
-        if (bolts[id].halo) {
-          bolts[id].halo.material.color.setHex(0x334155);
+        if (!detectedIds.has(id)) {
+          bolts[id].status = 'PENDING';
+          if (bolts[id].halo) {
+            bolts[id].halo.material.color.setHex(0xb45309); // Brown ring
+          }
+          animateBoltLooseness(id, 0.0);
         }
       });
 
@@ -2090,6 +2115,7 @@
         summaryHtml = '<div style="color: #94a3b8; text-align: center; padding: 8px;">No bolts detected in image. Check camera view.</div>';
       }
 
+      // 3. Fasteners DETECTED in this photo get RED (loose) or GREEN (tight) rings
       data.bolts.forEach(b => {
         photoDetectedBolts[b.bolt_id] = b;
         const isDefect = b.condition.includes('LOOSE');
@@ -2099,7 +2125,7 @@
           <span style="color:#38bdf8;">Gap: ${b.gap_mm}mm | Cont: ${b.contact_score}</span>
         </div>`;
 
-        // Synchronize 3D CAD animation for each detected bolt!
+        // Synchronize 3D CAD animation for each detected bolt
         const cadBolt = bolts[b.bolt_id];
         if (cadBolt) {
           cadBolt.status = b.condition;
@@ -2341,30 +2367,52 @@
           if (list.length > 0) {
             badge.className = 'status-badge status-loose';
             badge.textContent = `● ${list.length} DEFECTS DETECTED (REJECT)`;
-          } else {
+            badge.style.background = '';
+            badge.style.color = '';
+            badge.style.borderColor = '';
+          } else if (Object.keys(photoDetectedBolts).length > 0) {
             badge.className = 'status-badge status-tight';
-            badge.textContent = '● ALL FASTENERS SECURED (CONFORMING)';
+            badge.textContent = '● ALL INSPECTED FASTENERS PASS (CONFORMING)';
+            badge.style.background = '';
+            badge.style.color = '';
+            badge.style.borderColor = '';
+          } else {
+            badge.className = 'status-badge';
+            badge.textContent = '● AWAITING INSPECTION SCAN (PENDING)';
+            badge.style.background = 'rgba(180, 83, 9, 0.20)';
+            badge.style.color = '#f59e0b';
+            badge.style.borderColor = 'rgba(180, 83, 9, 0.45)';
           }
         }
 
         const defectIds = new Set(list.map(d => d.component_id));
 
         // Synchronize halo colors for all bolts:
-        // Any bolt currently in defect memory -> RED (0xef4444)
-        // Any bolt NOT in defect memory that is seated/tight -> GREEN (0x10b981)
+        // 1. Any bolt in defect memory -> RED (0xef4444)
+        // 2. Any bolt in current photo detection session -> RED if loose, GREEN if tight
+        // 3. Any bolt manually torqued/screwed -> GREEN (0x10b981)
+        // 4. Any uninspected bolt -> Default BROWN (0xb45309)
         Object.keys(bolts).forEach(id => {
           const bolt = bolts[id];
           if (bolt && bolt.halo) {
             if (defectIds.has(id)) {
-              bolt.halo.material.color.setHex(0xef4444);
-            } else if (bolt.status === 'TIGHT' || (photoDetectedBolts[id] && photoDetectedBolts[id].condition === 'TIGHT') || (!bolt.status || !bolt.status.includes('LOOSE'))) {
-              bolt.halo.material.color.setHex(0x10b981);
+              bolt.halo.material.color.setHex(0xef4444); // Red
+            } else if (photoDetectedBolts[id]) {
+              const isLoose = photoDetectedBolts[id].condition && photoDetectedBolts[id].condition.includes('LOOSE');
+              bolt.halo.material.color.setHex(isLoose ? 0xef4444 : 0x10b981);
+            } else if (bolt.status === 'TIGHT') {
+              bolt.halo.material.color.setHex(0x10b981); // Green
+            } else {
+              bolt.halo.material.color.setHex(0xb45309); // Brown by default
             }
           }
         });
 
         if (list.length === 0) {
-          container.innerHTML = '<div style="color: #64748b; text-align: center; padding: 12px;">No defects detected. All systems green.</div>';
+          const hasScanned = Object.keys(photoDetectedBolts).length > 0;
+          container.innerHTML = hasScanned
+            ? '<div style="color: #10b981; text-align: center; padding: 12px;">✅ All inspected fasteners conforming. Zero active defects.</div>'
+            : '<div style="color: #d97706; text-align: center; padding: 12px;">⏳ Awaiting camera scan. Fasteners pending verification.</div>';
           return;
         }
 
@@ -2385,8 +2433,10 @@
 
     async function clearDefects() {
       await fetch('/api/spatial/defects', { method: 'DELETE' });
+      photoDetectedBolts = {};
       Object.keys(bolts).forEach(id => {
-        if (bolts[id].halo) bolts[id].halo.material.color.setHex(0x10b981);
+        bolts[id].status = 'PENDING';
+        if (bolts[id].halo) bolts[id].halo.material.color.setHex(0xb45309); // Reset to brown
         animateBoltLooseness(id, 0.0);
       });
       fetchDefects();
