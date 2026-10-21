@@ -46,6 +46,8 @@ def save_defect(
         "timestamp": datetime.now().isoformat()
     }
 
+    # Avoid duplicate rows for the same component_id
+    memory = [d for d in memory if d.get("component_id") != component_id]
     memory.append(defect)
 
     with open(MEMORY_FILE, "w") as file:

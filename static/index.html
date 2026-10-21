@@ -2112,6 +2112,9 @@
 
       document.getElementById('photo-detection-summary').innerHTML = summaryHtml;
 
+      // Immediately sync 3D defect memory so halos and telemetry badge match current photo
+      fetchDefects();
+
       // Select first defective bolt, or currentBolt, or B01
       const firstDefect = data.bolts.find(b => b.condition.includes('LOOSE'));
       const targetBoltId = firstDefect ? firstDefect.bolt_id : (bolts[currentBolt] ? currentBolt : 'B01');
