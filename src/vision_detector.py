@@ -393,9 +393,6 @@ def generate_synthetic_plate_photo(
             cv2.circle(image, (bx, by), 40, (160, 165, 170), -1)
             cv2.circle(image, (bx, by), 28, (200, 205, 210), -1)
 
-    noise = np.random.normal(0, 2, image.shape)
-    image = np.clip(image.astype(np.float32) + noise, 0, 255).astype(np.uint8)
-
     cv2.imwrite(output_path, image)
     return output_path
 
