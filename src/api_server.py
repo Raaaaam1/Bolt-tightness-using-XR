@@ -131,12 +131,12 @@ async def api_inspect_photo(file: UploadFile = File(...)):
             f_raw.write(contents)
         res = process_rgb_photo(contents)
 
-        # 3D coordinates map matching CAD holed_plate.obj
+        # 3D coordinates map matching CAD holed_plate.obj (B01: TL, B02: TR, B03: BL, B04: BR)
         cad_coords = {
-            "B01": (0.0, -8.0, -4.0),
-            "B02": (0.0, 8.0, -4.0),
-            "B03": (0.0, -8.0, 4.0),
-            "B04": (0.0, 8.0, 4.0)
+            "B01": (-0.5, 8.0, -4.0),
+            "B02": (-0.5, 8.0, 4.0),
+            "B03": (-0.5, -8.0, -4.0),
+            "B04": (-0.5, -8.0, 4.0)
         }
 
         # Synchronize defects to spatial memory
@@ -174,12 +174,12 @@ def api_inspect_sample_photo(loose_bolt: str = None, loose_bolts: str = None):
         test_path = generate_synthetic_plate_photo("data/test_plate.jpg", loosen_bolts=bolts_to_loosen)
         res = process_rgb_photo(test_path)
 
-        # 3D coordinates map matching CAD holed_plate.obj
+        # 3D coordinates map matching CAD holed_plate.obj (B01: TL, B02: TR, B03: BL, B04: BR)
         cad_coords = {
-            "B01": (-0.5, -8.0, -4.0),
-            "B02": (-0.5, 8.0, -4.0),
-            "B03": (-0.5, -8.0, 4.0),
-            "B04": (-0.5, 8.0, 4.0)
+            "B01": (-0.5, 8.0, -4.0),
+            "B02": (-0.5, 8.0, 4.0),
+            "B03": (-0.5, -8.0, -4.0),
+            "B04": (-0.5, -8.0, 4.0)
         }
 
         # Synchronize defects to spatial memory

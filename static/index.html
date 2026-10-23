@@ -1072,20 +1072,11 @@
     }
 
     // Bolt data matching holed_plate.obj bodies and coordinates
+    // Layout in CAD camera view:
+    // B01: Top-Left  | B02: Top-Right
+    // B03: Bottom-Left | B04: Bottom-Right
     const bolts = {
       'B01': {
-        washerName: 'Body1:1',
-        boltName: 'Body1:5',
-        worldPos: new THREE.Vector3(-0.5, -8.0, -4.0),
-        status: 'PENDING',
-        gap: 0.0,
-        meshGroup: null,
-        washerMesh: null,
-        boltMesh: null,
-        halo: null,
-        origX: 0
-      },
-      'B02': {
         washerName: 'Body1:2',
         boltName: 'Body1:6',
         worldPos: new THREE.Vector3(-0.5, 8.0, -4.0),
@@ -1097,10 +1088,22 @@
         halo: null,
         origX: 0
       },
+      'B02': {
+        washerName: 'Body1:4',
+        boltName: 'Body1:8',
+        worldPos: new THREE.Vector3(-0.5, 8.0, 4.0),
+        status: 'PENDING',
+        gap: 0.0,
+        meshGroup: null,
+        washerMesh: null,
+        boltMesh: null,
+        halo: null,
+        origX: 0
+      },
       'B03': {
-        washerName: 'Body1:3',
-        boltName: 'Body1:7',
-        worldPos: new THREE.Vector3(-0.5, -8.0, 4.0),
+        washerName: 'Body1:1',
+        boltName: 'Body1:5',
+        worldPos: new THREE.Vector3(-0.5, -8.0, -4.0),
         status: 'PENDING',
         gap: 0.0,
         meshGroup: null,
@@ -1110,9 +1113,9 @@
         origX: 0
       },
       'B04': {
-        washerName: 'Body1:4',
-        boltName: 'Body1:8',
-        worldPos: new THREE.Vector3(-0.5, 8.0, 4.0),
+        washerName: 'Body1:3',
+        boltName: 'Body1:7',
+        worldPos: new THREE.Vector3(-0.5, -8.0, 4.0),
         status: 'PENDING',
         gap: 0.0,
         meshGroup: null,
@@ -1519,10 +1522,10 @@
         }
 
         const boltAxisConfigs = {
-          'B01': { cy: -9.0, cz: -5.0, tightXOffset: 0.0 },
-          'B02': { cy: 7.0, cz: -5.0, tightXOffset: 0.75 },
-          'B03': { cy: -9.0, cz: 3.0, tightXOffset: 0.50 },
-          'B04': { cy: 7.0, cz: 3.0, tightXOffset: 0.0 }
+          'B01': { cy: 7.0, cz: -5.0, tightXOffset: 0.75 }, // Top-Left (Body1:6)
+          'B02': { cy: 7.0, cz: 3.0, tightXOffset: 0.0 },   // Top-Right (Body1:8)
+          'B03': { cy: -9.0, cz: -5.0, tightXOffset: 0.0 }, // Bottom-Left (Body1:5)
+          'B04': { cy: -9.0, cz: 3.0, tightXOffset: 0.50 }  // Bottom-Right (Body1:7)
         };
 
         Object.keys(bolts).forEach((boltId) => {
