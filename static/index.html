@@ -969,32 +969,30 @@
           <span style="color: #94a3b8;">Residual Torque:</span>
           <strong id="res-torque-disp" style="color: #ffffff; font-family: 'JetBrains Mono', monospace;">28.0 Nm</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 2px;">
-          <span style="color: #94a3b8;">Detection Confidence:</span>
-          <strong id="res-conf-disp" style="color: #10b981; font-family: 'JetBrains Mono', monospace;">94%</strong>
-        </div>
+        <!-- Unified into Verification Confidence meter below -->
+        <span id="res-conf-disp" style="display: none;">94%</span>
       </div>
 
       <!-- Preserved IDs for Script Logic -->
       <span id="res-decision" style="display: none;">LIKELY_HEALTHY</span>
 
-      <div class="meter-container" style="margin-top: 12px;">
-        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;">
-          <span>Defect Probability</span>
-          <span id="val-prob" style="font-family: 'JetBrains Mono';">0.0%</span>
+      <div class="meter-container" style="margin-top: 14px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+          <span style="color: #cbd5e1; font-weight: 600;">Defect Probability</span>
+          <span id="val-prob" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #10b981;">0.0% (HEALTHY)</span>
         </div>
-        <div class="meter-bar">
-          <div id="bar-prob" class="meter-fill" style="width: 0%; background: #10b981;"></div>
+        <div class="meter-bar" style="height: 9px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.14); border-radius: 5px;">
+          <div id="bar-prob" class="meter-fill" style="width: 0%; background: #10b981; border-radius: 4px;"></div>
         </div>
       </div>
 
-      <div class="meter-container">
-        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;">
-          <span id="lbl-conf">Tracking Confidence</span>
-          <span id="val-conf" style="font-family: 'JetBrains Mono';">91.0%</span>
+      <div class="meter-container" style="margin-top: 10px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+          <span id="lbl-conf" style="color: #cbd5e1; font-weight: 600;">Verification Confidence</span>
+          <span id="val-conf" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #00f0ff;">91.0%</span>
         </div>
-        <div class="meter-bar">
-          <div id="bar-conf" class="meter-fill" style="width: 91%; background: #00f0ff;"></div>
+        <div class="meter-bar" style="height: 9px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.14); border-radius: 5px;">
+          <div id="bar-conf" class="meter-fill" style="width: 91%; background: #00f0ff; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 240, 255, 0.45);"></div>
         </div>
       </div>
     </div>
@@ -2274,7 +2272,7 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        document.getElementById('lbl-conf').textContent = 'Tracking Confidence';
+        document.getElementById('lbl-conf').textContent = 'Verification Confidence';
         handleInspectionResult(data, gapVal);
       } catch (err) {
         alert("API Error: " + err);
@@ -2318,14 +2316,46 @@
       document.getElementById('res-condition').textContent = data.final_result;
       document.getElementById('res-decision').textContent = data.decision;
 
-      const prob = (data.loose_probability * 100).toFixed(1);
+      const probNum = (data.loose_probability * 100);
+      const prob = probNum.toFixed(1);
       const conf = (data.confidence * 100).toFixed(1);
 
-      document.getElementById('val-prob').textContent = prob + '%';
-      document.getElementById('bar-prob').style.width = prob + '%';
+      const valProbEl = document.getElementById('val-prob');
+      const barProbEl = document.getElementById('bar-prob');
 
-      document.getElementById('val-conf').textContent = conf + '%';
-      document.getElementById('bar-conf').style.width = conf + '%';
+      if (valProbEl && barProbEl) {
+        if (probNum >= 70.0) {
+          valProbEl.textContent = prob + '% (DEFECT)';
+          valProbEl.style.color = '#ef4444';
+          barProbEl.style.width = Math.max(probNum, 6) + '%';
+          barProbEl.style.backgroundColor = '#ef4444';
+          barProbEl.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.7)';
+        } else if (probNum >= 30.0) {
+          valProbEl.textContent = prob + '% (BORDERLINE)';
+          valProbEl.style.color = '#f59e0b';
+          barProbEl.style.width = probNum + '%';
+          barProbEl.style.backgroundColor = '#f59e0b';
+          barProbEl.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.7)';
+        } else {
+          valProbEl.textContent = prob + '% (HEALTHY)';
+          valProbEl.style.color = '#10b981';
+          barProbEl.style.width = '0%';
+          barProbEl.style.backgroundColor = '#10b981';
+          barProbEl.style.boxShadow = 'none';
+        }
+      }
+
+      const valConfEl = document.getElementById('val-conf');
+      const barConfEl = document.getElementById('bar-conf');
+      if (valConfEl) {
+        valConfEl.textContent = conf + '%';
+        valConfEl.style.color = '#00f0ff';
+      }
+      if (barConfEl) {
+        barConfEl.style.width = conf + '%';
+        barConfEl.style.backgroundColor = '#00f0ff';
+        barConfEl.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.45)';
+      }
 
       const confDisp = document.getElementById('res-conf-disp');
       if (confDisp) confDisp.textContent = conf + '%';
@@ -2339,19 +2369,16 @@
       if (data.decision === 'LIKELY_HEALTHY' || data.final_result === 'TIGHT') {
         badge.className = 'status-badge status-tight';
         badge.textContent = '● ALL FASTENERS SECURED (CONFORMING)';
-        document.getElementById('bar-prob').style.backgroundColor = '#10b981';
         if (bolt.halo) bolt.halo.material.color.setHex(0x10b981);
         animateBoltLooseness(currentBolt, 0.0);
       } else if (data.decision === 'PHYSICAL_VERIFICATION') {
         badge.className = 'status-badge status-verify';
         badge.textContent = '● VERIFICATION REQUIRED';
-        document.getElementById('bar-prob').style.backgroundColor = '#f59e0b';
         if (bolt.halo) bolt.halo.material.color.setHex(0xf59e0b);
         animateBoltLooseness(currentBolt, gapVal);
       } else {
         badge.className = 'status-badge status-loose';
         badge.textContent = '● DEFECT DETECTED (REJECT)';
-        document.getElementById('bar-prob').style.backgroundColor = '#ef4444';
         if (bolt.halo) bolt.halo.material.color.setHex(0xef4444);
         animateBoltLooseness(currentBolt, gapVal);
       }
@@ -2443,6 +2470,34 @@
         animateBoltLooseness(id, 0.0);
       });
       fetchDefects();
+      const valProbEl = document.getElementById('val-prob');
+      const barProbEl = document.getElementById('bar-prob');
+      if (valProbEl) {
+        valProbEl.textContent = '0.0% (PENDING)';
+        valProbEl.style.color = '#94a3b8';
+      }
+      if (barProbEl) {
+        barProbEl.style.width = '0%';
+        barProbEl.style.boxShadow = 'none';
+      }
+      const valConfEl = document.getElementById('val-conf');
+      const barConfEl = document.getElementById('bar-conf');
+      if (valConfEl) {
+        valConfEl.textContent = '0.0%';
+        valConfEl.style.color = '#94a3b8';
+      }
+      if (barConfEl) {
+        barConfEl.style.width = '0%';
+        barConfEl.style.boxShadow = 'none';
+      }
+      const badge = document.getElementById('res-badge');
+      if (badge) {
+        badge.className = 'status-badge';
+        badge.textContent = '● AWAITING INSPECTION SCAN (PENDING)';
+        badge.style.background = 'rgba(180, 83, 9, 0.20)';
+        badge.style.color = '#f59e0b';
+        badge.style.borderColor = 'rgba(180, 83, 9, 0.45)';
+      }
     }
 
     // ==========================================
