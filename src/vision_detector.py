@@ -12,6 +12,22 @@ PLATE_LENGTH_MM = 200.0  # Length along Y (200 mm)
 PLATE_WIDTH_MM = 120.0   # Width along Z (120 mm)
 BOLT_DIAMETER_MM = 20.0  # Washer outer diameter (20 mm)
 
+_YOLO_MODEL = None
+
+
+def get_yolo_model():
+    """Lazy-loads and caches the fine-tuned YOLOv8 bolt detection model."""
+    global _YOLO_MODEL
+    if _YOLO_MODEL is None:
+        model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "best_bolt_yolo.pt")
+        if os.path.exists(model_path):
+            try:
+                from ultralytics import YOLO
+                _YOLO_MODEL = YOLO(model_path)
+            except Exception:
+                _YOLO_MODEL = None
+    return _YOLO_MODEL
+
 
 def process_rgb_photo(
     image_source: Union[str, bytes, np.ndarray],
@@ -67,6 +83,37 @@ def process_rgb_photo(
     aspect_ratio = float(w) / float(h)
 
     # 2. Multi-Scale Fastener Detection (Handles both Big Industrial Bolts and Small Screws)
+    # Primary Tier: Custom YOLOv8 Deep Learning Detector (Fastener ROI Localization)
+    yolo_bolts = []
+    yolo_model = get_yolo_model()
+    if yolo_model is not None:
+        try:
+            y_res = yolo_model.predict(img, conf=0.18, verbose=False)
+            boxes = y_res[0].boxes
+            if boxes is not None and len(boxes) > 0:
+                raw_cands = []
+                for box in boxes:
+                    coords = box.xyxy[0].tolist()
+                    x1, y1, x2, y2 = coords
+                    bx_w, bx_h = x2 - x1, y2 - y1
+                    conf = float(box.conf[0])
+                    if 15 < bx_w < w * 0.70 and 15 < bx_h < h * 0.70:
+                        cx = int((x1 + x2) / 2)
+                        cy = int((y1 + y2) / 2)
+                        cr = int(max(bx_w, bx_h) / 3.0)
+                        cr = max(18, min(cr, 65))
+                        raw_cands.append((cx, cy, cr, conf))
+                raw_cands.sort(key=lambda c: c[3], reverse=True)
+                clean_yolo = []
+                for cx, cy, cr, conf in raw_cands:
+                    too_close = any(np.hypot(cx - ex[0], cy - ex[1]) < 45 for ex in clean_yolo)
+                    if not too_close:
+                        clean_yolo.append((cx, cy, cr, "yolo", f"B{len(clean_yolo)+1:02d}"))
+                if len(clean_yolo) >= 1:
+                    yolo_bolts = clean_yolo
+        except Exception:
+            yolo_bolts = []
+
     # Scale A: Large Industrial Bolts/Washers (r: 34 to 65 px)
     large_bolts = []
     if aspect_ratio > 0.65 and w >= 300 and h >= 250:
@@ -131,9 +178,18 @@ def process_rgb_photo(
                     small_screws.append((cx, cy, cr, "small"))
 
     # Determine Active Fastener Tier:
-    if len(large_bolts) >= 2:
+    if len(yolo_bolts) >= 2:
+        chosen_fasteners = yolo_bolts
+        tier_mode = "YOLO_DEEP_LEARNING"
+    elif len(large_bolts) >= 2:
         chosen_fasteners = large_bolts
         tier_mode = "LARGE_BOLT"
+    elif len(small_screws) >= 2:
+        chosen_fasteners = small_screws
+        tier_mode = "SMALL_SCREW"
+    elif len(yolo_bolts) >= 1 and not large_bolts and not small_screws:
+        chosen_fasteners = yolo_bolts
+        tier_mode = "YOLO_DEEP_LEARNING"
     elif len(small_screws) >= 1:
         chosen_fasteners = small_screws
         tier_mode = "SMALL_SCREW"
@@ -301,10 +357,11 @@ def process_rgb_photo(
     annotated = img.copy()
 
     # Top HUD Banner
+    hud_tag = "[YOLOv8 DEEP LEARNING]" if tier_mode == "YOLO_DEEP_LEARNING" else "[OPTICAL CV]"
     cv2.rectangle(annotated, (0, 0), (w, 36), (10, 16, 28), -1)
     cv2.line(annotated, (0, 36), (w, 36), (0, 240, 255), 2)
-    cv2.putText(annotated, f"XR COMPUTER VISION - {len(detected_bolts)} BOLT(S) DETECTED", (12, 24),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 240, 255), 2, cv2.LINE_AA)
+    cv2.putText(annotated, f"XR INSPECTION {hud_tag} - {len(detected_bolts)} BOLT(S) DETECTED", (12, 24),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 240, 255), 2, cv2.LINE_AA)
 
     # Draw AR Target Rings for Each Bolt
     for b in detected_bolts:
@@ -344,10 +401,14 @@ def process_rgb_photo(
     _, buffer = cv2.imencode(".jpg", annotated, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
     img_base64 = base64.b64encode(buffer).decode("utf-8")
 
+    engine_label = "YOLOv8 Deep Learning (Custom Dataset)" if tier_mode == "YOLO_DEEP_LEARNING" else "Classical Optical Computer Vision"
+
     return {
         "status": "success",
         "total_bolts_detected": len(detected_bolts),
         "defects_detected": defects_count,
+        "detection_engine": engine_label,
+        "tier_mode": tier_mode,
         "pixels_per_mm": round(pixels_per_mm, 3),
         "bolts": detected_bolts,
         "annotated_image_base64": f"data:image/jpeg;base64,{img_base64}",

@@ -1003,6 +1003,10 @@
         <span style="font-weight: 700; font-size: 13px; color: #00f0ff;">CV AR OVERLAY (RGB PHOTO)</span>
         <span id="photo-bolts-count" style="font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono';">4 BOLTS</span>
       </div>
+      <div id="photo-engine-badge" style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-family: 'JetBrains Mono'; color: #c084fc; margin: 4px 0 8px 0; background: rgba(192, 132, 252, 0.10); padding: 4px 8px; border-radius: 5px; border: 1px solid rgba(192, 132, 252, 0.3);">
+        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor;"></span>
+        <span id="photo-engine-name">ENGINE: YOLOv8 DEEP LEARNING</span>
+      </div>
       <div class="photo-preview-wrapper" onclick="openPhotoModal()" title="Click to view full high-resolution image">
         <img id="photo-preview-img" alt="CV Annotated RGB Photo">
         <div class="photo-expand-badge">🔍 Click to Expand</div>
@@ -2088,6 +2092,22 @@
       // Show Photo Card
       const card = document.getElementById('photo-preview-card');
       card.style.display = 'block';
+
+      // Update detection engine badge
+      const engineBadge = document.getElementById('photo-engine-name');
+      const engineContainer = document.getElementById('photo-engine-badge');
+      if (engineBadge && data.detection_engine) {
+        engineBadge.textContent = `ENGINE: ${data.detection_engine.toUpperCase()}`;
+        if (data.tier_mode === 'YOLO_DEEP_LEARNING') {
+          engineContainer.style.color = '#c084fc';
+          engineContainer.style.borderColor = 'rgba(192, 132, 252, 0.4)';
+          engineContainer.style.background = 'rgba(192, 132, 252, 0.12)';
+        } else {
+          engineContainer.style.color = '#00f0ff';
+          engineContainer.style.borderColor = 'rgba(0, 240, 255, 0.35)';
+          engineContainer.style.background = 'rgba(0, 240, 255, 0.08)';
+        }
+      }
 
       const img = document.getElementById('photo-preview-img');
       img.src = data.annotated_image_base64;

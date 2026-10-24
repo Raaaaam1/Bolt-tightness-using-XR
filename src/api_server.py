@@ -21,11 +21,13 @@ app = FastAPI(
 
 @app.on_event("startup")
 def preload_models():
-    """Warm up and pre-load ML models and OpenCV dependencies at startup."""
+    """Warm up and pre-load ML models, YOLOv8 weights, and OpenCV dependencies at startup."""
     try:
         from src.inference import _get_models
         _get_models()
-        print("XR inspection ML models preloaded into RAM successfully.")
+        from src.vision_detector import get_yolo_model
+        get_yolo_model()
+        print("XR inspection ML & YOLOv8 models preloaded into RAM successfully.")
     except Exception as e:
         print(f"Model preload warning: {e}")
 
