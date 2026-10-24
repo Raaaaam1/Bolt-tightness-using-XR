@@ -100,7 +100,7 @@ def process_rgb_photo(
                     if 15 < bx_w < w * 0.70 and 15 < bx_h < h * 0.70:
                         cx = int((x1 + x2) / 2)
                         cy = int((y1 + y2) / 2)
-                        cr = int(max(bx_w, bx_h) / 3.0)
+                        cr = int(min(bx_w, bx_h) / 2.0)
                         cr = max(18, min(cr, 65))
                         raw_cands.append((cx, cy, cr, conf))
                 raw_cands.sort(key=lambda c: c[3], reverse=True)
@@ -178,18 +178,15 @@ def process_rgb_photo(
                     small_screws.append((cx, cy, cr, "small"))
 
     # Determine Active Fastener Tier:
-    if len(yolo_bolts) >= 2:
+    if len(large_bolts) == 4:
+        chosen_fasteners = large_bolts
+        tier_mode = "LARGE_BOLT"
+    elif len(yolo_bolts) >= 1:
         chosen_fasteners = yolo_bolts
         tier_mode = "YOLO_DEEP_LEARNING"
     elif len(large_bolts) >= 2:
         chosen_fasteners = large_bolts
         tier_mode = "LARGE_BOLT"
-    elif len(small_screws) >= 2:
-        chosen_fasteners = small_screws
-        tier_mode = "SMALL_SCREW"
-    elif len(yolo_bolts) >= 1 and not large_bolts and not small_screws:
-        chosen_fasteners = yolo_bolts
-        tier_mode = "YOLO_DEEP_LEARNING"
     elif len(small_screws) >= 1:
         chosen_fasteners = small_screws
         tier_mode = "SMALL_SCREW"
@@ -246,7 +243,7 @@ def process_rgb_photo(
         angles = np.linspace(0, 2 * np.pi, num_samples, endpoint=False)
         if aspect_ratio <= 0.65 and r >= 38:
             sample_r = r - 7
-        elif ftype == "small":
+        elif ftype == "small" or r < 34:
             sample_r = r + 1
         else:
             sample_r = r + 3
