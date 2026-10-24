@@ -106,11 +106,19 @@ def process_rgb_photo(
                 raw_cands.sort(key=lambda c: c[3], reverse=True)
                 clean_yolo = []
                 for cx, cy, cr, conf in raw_cands:
-                    too_close = any(np.hypot(cx - ex[0], cy - ex[1]) < 45 for ex in clean_yolo)
+                    too_close = any(np.hypot(cx - ex[0], cy - ex[1]) < 70 for ex in clean_yolo)
                     if not too_close:
-                        clean_yolo.append((cx, cy, cr, "yolo", f"B{len(clean_yolo)+1:02d}"))
+                        clean_yolo.append((cx, cy, cr, "yolo", f"B{len(clean_yolo)+1:02d}", conf))
+                if len(clean_yolo) >= 4:
+                    radii = [c[2] for c in clean_yolo]
+                    med_r = float(np.median(radii))
+                    valid_cands = [c for c in clean_yolo if c[2] >= 0.65 * med_r]
+                    if len(valid_cands) >= 2:
+                        clean_yolo = valid_cands
+                    if len(clean_yolo) > 4:
+                        clean_yolo = clean_yolo[:4]
                 if len(clean_yolo) >= 1:
-                    yolo_bolts = clean_yolo
+                    yolo_bolts = [(c[0], c[1], c[2], c[3], c[4]) for c in clean_yolo]
         except Exception:
             yolo_bolts = []
 
@@ -128,13 +136,18 @@ def process_rgb_photo(
             q_roi = filtered[qy1:qy2, qx1:qx2]
             qc = cv2.HoughCircles(
                 q_roi, cv2.HOUGH_GRADIENT, dp=1.2, minDist=40,
-                param1=50, param2=15, minRadius=34, maxRadius=55
+                param1=50, param2=20, minRadius=34, maxRadius=55
             )
             if qc is not None:
                 bc = qc[0][0]
                 cx, cy, cr = int(bc[0] + qx1), int(bc[1] + qy1), int(bc[2])
                 if 20 < cx < w - 20 and 20 < cy < h - 20:
-                    quad_circles.append((cx, cy, cr, "large", qid))
+                    theta = np.linspace(0, 2 * np.pi, 36, endpoint=False)
+                    xs = np.clip(np.int32(cx + cr * np.cos(theta)), 0, w - 1)
+                    ys = np.clip(np.int32(cy + cr * np.sin(theta)), 0, h - 1)
+                    cov = float(np.sum(edges[ys, xs] > 0)) / 36.0
+                    if cov >= 0.16:
+                        quad_circles.append((cx, cy, cr, "large", qid))
         if len(quad_circles) == 4:
             large_bolts = quad_circles
 
@@ -151,7 +164,7 @@ def process_rgb_photo(
                     xs = np.clip(np.int32(cx + cr * np.cos(theta)), 0, w - 1)
                     ys = np.clip(np.int32(cy + cr * np.sin(theta)), 0, h - 1)
                     cov = float(np.sum(edges[ys, xs] > 0)) / 36.0
-                    if cov >= 0.07:
+                    if cov >= 0.16:
                         large_bolts.append((cx, cy, cr, "large", f"B{len(large_bolts)+1:02d}"))
 
     # Scale B: Small Fasteners / Screws (r: 13 to 28 px)
@@ -178,7 +191,10 @@ def process_rgb_photo(
                     small_screws.append((cx, cy, cr, "small"))
 
     # Determine Active Fastener Tier:
-    if len(large_bolts) == 4:
+    if len(yolo_bolts) >= 2:
+        chosen_fasteners = yolo_bolts
+        tier_mode = "YOLO_DEEP_LEARNING"
+    elif len(large_bolts) == 4:
         chosen_fasteners = large_bolts
         tier_mode = "LARGE_BOLT"
     elif len(yolo_bolts) >= 1:
@@ -222,6 +238,8 @@ def process_rgb_photo(
 
     # Sort fasteners spatially: top to bottom, left to right
     chosen_fasteners.sort(key=lambda c: (c[1] // (h // 2 + 1), c[0]))
+    for idx, item in enumerate(chosen_fasteners):
+        chosen_fasteners[idx] = (item[0], item[1], item[2], item[3], f"B{idx+1:02d}")
 
     # 3. Analyze Each Genuinely Detected Bolt/Screw
     for idx, item in enumerate(chosen_fasteners):
@@ -298,8 +316,41 @@ def process_rgb_photo(
         vision_quality = round(min(0.96, max(0.80, 0.82 + (lap_var / 2500.0))), 2)
         depth_quality = round(min(0.94, max(0.78, 0.80 + (lap_var / 3000.0))), 2)
 
-        # Tightness Determination from Combined Standoff Gap & Shadow Arc
-        if standoff_gap_mm >= 6.0:
+        # Check inner vs outer contrast for bracket screws (e.g. screws on dark mounting bracket)
+        crop_box = min(35, r)
+        y1, y2 = max(0, cy - crop_box), min(h, cy + crop_box)
+        x1, x2 = max(0, cx - crop_box), min(w, cx + crop_box)
+        sub_gray = gray[y1:y2, x1:x2]
+        sh, sw = sub_gray.shape
+        inner_sub = sub_gray[sh // 2 - 10:sh // 2 + 10, sw // 2 - 10:sw // 2 + 10]
+        outer_sub = np.concatenate([
+            sub_gray[:6, :].flatten(), sub_gray[-6:, :].flatten(),
+            sub_gray[:, :6].flatten(), sub_gray[:, -6:].flatten()
+        ]) if (sh >= 16 and sw >= 16) else np.array([])
+        inner_outer_contrast = float(np.mean(inner_sub) - np.mean(outer_sub)) if (inner_sub.size > 0 and outer_sub.size > 0) else 0.0
+
+        is_bracket_screw = (aspect_ratio > 0.8) and (local_base < 180) and (np.mean(sub_gray) < 130)
+
+        # Tightness Determination from Combined Bracket Contrast, Standoff Gap & Shadow Arc
+        if is_bracket_screw:
+            # On a dark bracket, loose screws lifted off expose bright wood/threads around the head
+            if inner_outer_contrast < -35.0:
+                gap_mm = 7.5
+                contact_score = 0.62
+                est_torque = 8.0
+                est_rotation = 5.6
+            elif inner_outer_contrast < -12.0:
+                gap_mm = 5.0
+                contact_score = 0.78
+                est_torque = 13.0
+                est_rotation = 3.4
+            else:
+                # Flush tight countersunk screw into dark bracket
+                gap_mm = 0.0
+                contact_score = 0.96
+                est_torque = 28.0
+                est_rotation = 0.7
+        elif standoff_gap_mm >= 6.0:
             gap_mm = 7.5
             contact_score = 0.62
             est_torque = 8.0
