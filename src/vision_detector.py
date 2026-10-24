@@ -178,7 +178,7 @@ def process_rgb_photo(
 
         c_small = cv2.HoughCircles(
             masked_filtered, cv2.HOUGH_GRADIENT, dp=1.1, minDist=100,
-            param1=45, param2=13, minRadius=14, maxRadius=32
+            param1=45, param2=14, minRadius=14, maxRadius=32
         )
         if c_small is not None:
             for c in c_small[0]:
@@ -187,7 +187,17 @@ def process_rgb_photo(
                 xs = np.clip(np.int32(cx + cr * np.cos(theta)), 0, w - 1)
                 ys = np.clip(np.int32(cy + cr * np.sin(theta)), 0, h - 1)
                 cov = float(np.sum(edges[ys, xs] > 0)) / 36.0
-                if cov >= 0.05:
+
+                # Validate genuine screw texture via gradient magnitude (rejects flat surface false positives)
+                roi = gray[max(0, cy - cr):min(h, cy + cr), max(0, cx - cr):min(w, cx + cr)]
+                if roi.size > 0:
+                    gx = cv2.Sobel(roi, cv2.CV_32F, 1, 0)
+                    gy = cv2.Sobel(roi, cv2.CV_32F, 0, 1)
+                    grad_mag = float(np.mean(np.sqrt(gx**2 + gy**2)))
+                else:
+                    grad_mag = 0.0
+
+                if cov >= 0.05 and grad_mag >= 45.0:
                     small_screws.append((cx, cy, cr, "small"))
 
     # Determine Active Fastener Tier:
@@ -293,7 +303,7 @@ def process_rgb_photo(
 
         # 6. Profile Standoff Analysis (for side-angle small screws)
         standoff_gap_mm = 0.0
-        if ftype == "small":
+        if ftype == "small" or aspect_ratio <= 0.65:
             # Examine lateral profile between screw head and mounting board
             right_strip = np.mean(gray[max(0, cy - 4):min(h, cy + 4), cx + r:min(w, cx + r + 40)], axis=0) if w > cx + r + 1 else np.array([])
             first_board = -1
@@ -305,6 +315,20 @@ def process_rgb_photo(
             dark_before_board = first_board if first_board != -1 else 0
             if dark_before_board >= 8:
                 standoff_gap_mm = 5.0
+            elif len(right_strip) > 5:
+                # Check for dark standoff gap before reaching bright mounting board
+                dark_count = 0
+                in_dark = False
+                saw_board = False
+                for v in right_strip:
+                    if v < 115:
+                        dark_count += 1
+                        in_dark = True
+                    elif in_dark and v >= 135:
+                        saw_board = True
+                        break
+                if dark_count >= 4 and saw_board:
+                    standoff_gap_mm = 5.0
 
         # Estimate ROI image tracking quality
         roi_y1 = max(0, cy - r - 10)
