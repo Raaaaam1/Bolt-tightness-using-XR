@@ -19,6 +19,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.on_event("startup")
+def preload_models():
+    """Warm up and pre-load ML models and OpenCV dependencies at startup."""
+    try:
+        from src.inference import _get_models
+        _get_models()
+        print("XR inspection ML models preloaded into RAM successfully.")
+    except Exception as e:
+        print(f"Model preload warning: {e}")
+
 # Enable CORS for Unity, WebXR, and external browser frontends
 app.add_middleware(
     CORSMiddleware,

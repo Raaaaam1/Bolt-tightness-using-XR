@@ -339,7 +339,7 @@ def process_rgb_photo(
     os.makedirs(os.path.dirname(save_annotated_path), exist_ok=True)
     cv2.imwrite(save_annotated_path, annotated)
 
-    _, buffer = cv2.imencode(".jpg", annotated)
+    _, buffer = cv2.imencode(".jpg", annotated, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
     img_base64 = base64.b64encode(buffer).decode("utf-8")
 
     return {
