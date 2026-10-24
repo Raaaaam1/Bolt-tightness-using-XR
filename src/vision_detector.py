@@ -246,10 +246,28 @@ def process_rgb_photo(
             "annotated_image_path": save_annotated_path
         }
 
-    # Sort fasteners spatially: top to bottom, left to right
-    chosen_fasteners.sort(key=lambda c: (c[1] // (h // 2 + 1), c[0]))
-    for idx, item in enumerate(chosen_fasteners):
-        chosen_fasteners[idx] = (item[0], item[1], item[2], item[3], f"B{idx+1:02d}")
+    # Spatial fastener identification matching CAD assembly layout:
+    # 4-bolt assembly layout: B01=Top-Left, B02=Top-Right, B03=Bottom-Left, B04=Bottom-Right
+    if len(chosen_fasteners) == 2:
+        # Check if fasteners are vertically aligned (e.g. left edge of panel with Top=B01, Bottom=B03)
+        chosen_fasteners.sort(key=lambda c: c[1])  # Top to bottom
+        f_top = chosen_fasteners[0]
+        f_bot = chosen_fasteners[1]
+        dx = abs(f_top[0] - f_bot[0])
+        dy = abs(f_top[1] - f_bot[1])
+        if dy > dx or aspect_ratio <= 0.70:
+            # Vertical column: Top is B01 (Top-Left), Bottom is B03 (Bottom-Left) — NO B02 on this edge!
+            chosen_fasteners[0] = (f_top[0], f_top[1], f_top[2], f_top[3], "B01")
+            chosen_fasteners[1] = (f_bot[0], f_bot[1], f_bot[2], f_bot[3], "B03")
+        else:
+            # Horizontal row: Left is B01, Right is B02
+            chosen_fasteners[0] = (f_top[0], f_top[1], f_top[2], f_top[3], "B01")
+            chosen_fasteners[1] = (f_bot[0], f_bot[1], f_bot[2], f_bot[3], "B02")
+    else:
+        # Sort fasteners spatially: top to bottom, left to right
+        chosen_fasteners.sort(key=lambda c: (c[1] // (h // 2 + 1), c[0]))
+        for idx, item in enumerate(chosen_fasteners):
+            chosen_fasteners[idx] = (item[0], item[1], item[2], item[3], f"B{idx+1:02d}")
 
     # 3. Analyze Each Genuinely Detected Bolt/Screw
     for idx, item in enumerate(chosen_fasteners):
