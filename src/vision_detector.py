@@ -94,7 +94,7 @@ def process_rgb_photo(
     if not large_bolts and w >= 450:
         c_large = cv2.HoughCircles(
             filtered, cv2.HOUGH_GRADIENT, dp=1.2, minDist=80,
-            param1=50, param2=18, minRadius=30, maxRadius=70
+            param1=50, param2=18, minRadius=28, maxRadius=70
         )
         if c_large is not None:
             for c in c_large[0]:
@@ -111,14 +111,14 @@ def process_rgb_photo(
     small_screws = []
     if not large_bolts or len(large_bolts) < 2:
         mask = np.zeros_like(gray)
-        y_min, y_max = int(h * 0.16), int(h * 0.81)
+        y_min, y_max = int(h * 0.16), int(h * 0.94)
         x_min, x_max = int(w * 0.18), int(w * 0.95)
         mask[y_min:y_max, x_min:x_max] = 255
         masked_filtered = cv2.bitwise_and(filtered, filtered, mask=mask)
 
         c_small = cv2.HoughCircles(
             masked_filtered, cv2.HOUGH_GRADIENT, dp=1.1, minDist=100,
-            param1=45, param2=11, minRadius=14, maxRadius=26
+            param1=45, param2=11, minRadius=14, maxRadius=32
         )
         if c_small is not None:
             for c in c_small[0]:
@@ -188,8 +188,8 @@ def process_rgb_photo(
         # 5. Angular Perimeter Crescent Shadow Analysis (excluding border < 6 px)
         num_samples = 120
         angles = np.linspace(0, 2 * np.pi, num_samples, endpoint=False)
-        if aspect_ratio <= 0.65 and r > 48:
-            sample_r = r - 4
+        if aspect_ratio <= 0.65 and r >= 38:
+            sample_r = r - 7
         else:
             sample_r = r + 3
         sample_xs = np.clip(np.int32(cx + sample_r * np.cos(angles)), 0, w - 1)
