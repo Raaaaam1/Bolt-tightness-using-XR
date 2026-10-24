@@ -56,6 +56,15 @@ def save_defect(
     print("Defect stored successfully.")
 
 
+def clear_defects():
+    """Clears all defect records."""
+    try:
+        with open(MEMORY_FILE, "w") as file:
+            json.dump([], file, indent=4)
+    except Exception:
+        pass
+
+
 # --------------------------------
 # TEST CASE
 # --------------------------------

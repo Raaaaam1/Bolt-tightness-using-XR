@@ -2433,24 +2433,34 @@
         }
 
         const defectIds = new Set(list.map(d => d.component_id));
+        const hasPhotoScan = Object.keys(photoDetectedBolts).length > 0;
 
         // Synchronize halo colors for all bolts:
-        // 1. Any bolt in defect memory -> RED (0xef4444)
-        // 2. Any bolt in current photo detection session -> RED if loose, GREEN if tight
-        // 3. Any bolt manually torqued/screwed -> GREEN (0x10b981)
-        // 4. Any uninspected bolt -> Default BROWN (0xb45309)
+        // 1. If photo inspection active:
+        //    - Fasteners in photo: RED if loose, GREEN if tight
+        //    - Fasteners NOT in photo: Default BROWN (uninspected/pending)
+        // 2. If manually torqued/screwed: GREEN (0x10b981)
+        // 3. Otherwise without photo scan: defect memory -> RED, default -> BROWN
         Object.keys(bolts).forEach(id => {
           const bolt = bolts[id];
           if (bolt && bolt.halo) {
-            if (defectIds.has(id)) {
-              bolt.halo.material.color.setHex(0xef4444); // Red
-            } else if (photoDetectedBolts[id]) {
-              const isLoose = photoDetectedBolts[id].condition && photoDetectedBolts[id].condition.includes('LOOSE');
-              bolt.halo.material.color.setHex(isLoose ? 0xef4444 : 0x10b981);
-            } else if (bolt.status === 'TIGHT') {
-              bolt.halo.material.color.setHex(0x10b981); // Green
+            if (hasPhotoScan) {
+              if (photoDetectedBolts[id]) {
+                const isLoose = photoDetectedBolts[id].condition && photoDetectedBolts[id].condition.includes('LOOSE');
+                bolt.halo.material.color.setHex(isLoose ? 0xef4444 : 0x10b981);
+              } else if (bolt.status === 'TIGHT') {
+                bolt.halo.material.color.setHex(0x10b981); // Green if tightened
+              } else {
+                bolt.halo.material.color.setHex(0xb45309); // Brown (default for uninspected bolts)
+              }
             } else {
-              bolt.halo.material.color.setHex(0xb45309); // Brown by default
+              if (defectIds.has(id)) {
+                bolt.halo.material.color.setHex(0xef4444); // Red
+              } else if (bolt.status === 'TIGHT') {
+                bolt.halo.material.color.setHex(0x10b981); // Green
+              } else {
+                bolt.halo.material.color.setHex(0xb45309); // Brown by default
+              }
             }
           }
         });

@@ -151,6 +151,10 @@ async def api_inspect_photo(file: UploadFile = File(...)):
             "B04": (-0.5, -8.0, 4.0)
         }
 
+        # Clear existing defect memory for fresh photo inspection sync
+        from src.spatial_memory import clear_defects as clear_all_defects
+        clear_all_defects()
+
         # Synchronize defects to spatial memory
         for b in res.get("bolts", []):
             if "LOOSE" in b["condition"].upper():
@@ -193,6 +197,10 @@ def api_inspect_sample_photo(loose_bolt: str = None, loose_bolts: str = None):
             "B03": (-0.5, -8.0, -4.0),
             "B04": (-0.5, -8.0, 4.0)
         }
+
+        # Clear existing defect memory for fresh sample photo inspection sync
+        from src.spatial_memory import clear_defects as clear_all_defects
+        clear_all_defects()
 
         # Synchronize defects to spatial memory
         for b in res.get("bolts", []):
