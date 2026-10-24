@@ -118,7 +118,7 @@ def process_rgb_photo(
 
         c_small = cv2.HoughCircles(
             masked_filtered, cv2.HOUGH_GRADIENT, dp=1.1, minDist=100,
-            param1=45, param2=11, minRadius=14, maxRadius=32
+            param1=45, param2=13, minRadius=14, maxRadius=32
         )
         if c_small is not None:
             for c in c_small[0]:
@@ -190,6 +190,8 @@ def process_rgb_photo(
         angles = np.linspace(0, 2 * np.pi, num_samples, endpoint=False)
         if aspect_ratio <= 0.65 and r >= 38:
             sample_r = r - 7
+        elif ftype == "small":
+            sample_r = r + 1
         else:
             sample_r = r + 3
         sample_xs = np.clip(np.int32(cx + sample_r * np.cos(angles)), 0, w - 1)
@@ -222,14 +224,14 @@ def process_rgb_photo(
         standoff_gap_mm = 0.0
         if ftype == "small":
             # Examine lateral profile between screw head and mounting board
-            right_strip = np.mean(gray[max(0, cy - 4):min(h, cy + 4), cx:min(w, cx + 50)], axis=0) if w > cx + 1 else np.array([])
+            right_strip = np.mean(gray[max(0, cy - 4):min(h, cy + 4), cx + r:min(w, cx + r + 40)], axis=0) if w > cx + r + 1 else np.array([])
             first_board = -1
             if len(right_strip) > 0:
                 for s_idx, v in enumerate(right_strip):
                     if v > 135:
                         first_board = s_idx
                         break
-            dark_before_board = first_board if first_board != -1 else len(right_strip)
+            dark_before_board = first_board if first_board != -1 else 0
             if dark_before_board >= 8:
                 standoff_gap_mm = 5.0
 
