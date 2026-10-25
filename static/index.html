@@ -2908,9 +2908,29 @@
       const pageHeight = doc.internal.pageSize.getHeight();
 
       // Compile Bolt Rows
+      const hasPhotoScan = Object.keys(photoDetectedBolts).length > 0;
+
       const boltList = ['B01', 'B02', 'B03', 'B04'].map(id => {
         const p = photoDetectedBolts[id];
         const b = bolts[id];
+        const isManuallyTightened = b && b.status === 'TIGHT' && !p;
+
+        // Fasteners not captured in camera view (or uninspected) are marked as NOT KNOWN
+        if (!p && !isManuallyTightened) {
+          return {
+            id: id,
+            pos: b ? `[${b.worldPos.x.toFixed(1)}, ${b.worldPos.y.toFixed(1)}, ${b.worldPos.z.toFixed(1)}]` : 'N/A',
+            gap: 'NOT KNOWN',
+            contact: 'NOT KNOWN',
+            torque: 'NOT KNOWN',
+            conf: 'N/A',
+            prob: 'N/A',
+            status: 'NOT KNOWN',
+            isDefect: false,
+            isNotKnown: true
+          };
+        }
+
         const cond = p ? p.condition : (b ? b.status : 'TIGHT');
         const gap = p ? p.gap_mm : (b ? b.gap : 0.0);
         const contact = p ? p.contact_score : (gap > 0 ? 0.62 : 0.96);
@@ -2927,13 +2947,16 @@
           conf: conf,
           prob: prob,
           status: isDefect ? 'FAIL (LOOSE)' : 'PASS (TIGHT)',
-          isDefect: isDefect
+          isDefect: isDefect,
+          isNotKnown: false
         };
       });
 
       const totalBolts = boltList.length;
       const totalDefects = boltList.filter(b => b.isDefect).length;
-      const isConforming = totalDefects === 0;
+      const notKnownCount = boltList.filter(b => b.isNotKnown).length;
+      const inspectedCount = totalBolts - notKnownCount;
+      const isConforming = totalDefects === 0 && inspectedCount > 0;
       const now = new Date();
       const batchId = 'WP-' + now.toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
 
@@ -2977,22 +3000,32 @@
       doc.text(`Torque Standard Spec: 28.0 Nm (Nominal)`, col2X, 52);
 
       // --- Overall Compliance Banner ---
-      if (isConforming) {
+      if (inspectedCount === 0) {
+        doc.setFillColor(254, 252, 232);
+        doc.setDrawColor(217, 119, 6);
+        doc.roundedRect(14, 57, pageWidth - 28, 13, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(180, 83, 9);
+        doc.text("QUALITY STATUS: PENDING - AWAITING FASTENER INSPECTION SCAN", 20, 65);
+      } else if (isConforming) {
         doc.setFillColor(240, 253, 244);
         doc.setDrawColor(16, 185, 129);
         doc.roundedRect(14, 57, pageWidth - 28, 13, 2, 2, 'FD');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
+        doc.setFontSize(10.5);
         doc.setTextColor(21, 128, 61);
-        doc.text("QUALITY STATUS: CONFORMING - ASSEMBLY APPROVED (ALL FASTENERS SECURED)", 20, 65);
+        const sub = notKnownCount > 0 ? ` (${notKnownCount} FASTENERS NOT IN VIEW)` : '';
+        doc.text(`QUALITY STATUS: CONFORMING - ALL INSPECTED FASTENERS SECURED${sub}`, 20, 65);
       } else {
         doc.setFillColor(254, 242, 242);
         doc.setDrawColor(239, 68, 68);
         doc.roundedRect(14, 57, pageWidth - 28, 13, 2, 2, 'FD');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
+        doc.setFontSize(10.5);
         doc.setTextColor(185, 28, 28);
-        doc.text(`QUALITY STATUS: REJECT - ${totalDefects} FASTENER(S) LOOSE (RE-TORQUE REQUIRED)`, 20, 65);
+        const sub = notKnownCount > 0 ? ` (${notKnownCount} NOT IN VIEW)` : '';
+        doc.text(`QUALITY STATUS: REJECT - ${totalDefects} FASTENER(S) LOOSE${sub} (RE-TORQUE REQUIRED)`, 20, 65);
       }
 
       // --- AutoTable of Fasteners ---
@@ -3041,6 +3074,11 @@
                 data.cell.styles.textColor = [220, 38, 38];
               }
               data.cell.styles.fillColor = [254, 242, 242];
+            } else if (rowData && rowData.isNotKnown) {
+              if (data.column.index === 7) {
+                data.cell.styles.textColor = [180, 83, 9];
+              }
+              data.cell.styles.fillColor = [255, 251, 235];
             } else if (rowData) {
               if (data.column.index === 7) {
                 data.cell.styles.textColor = [22, 163, 74];
@@ -3141,6 +3179,13 @@
       ['B01', 'B02', 'B03', 'B04'].forEach(id => {
         const p = photoDetectedBolts[id];
         const b = bolts[id];
+        const isManuallyTightened = b && b.status === 'TIGHT' && !p;
+
+        if (!p && !isManuallyTightened) {
+          csv += `"${now.toISOString()}","HOLED_PLATE","${batchId}","${id}","NOT KNOWN","NOT KNOWN","NOT KNOWN","NOT KNOWN","N/A","N/A","NOT KNOWN","NOT IN CAMERA VIEW - PENDING"\n`;
+          return;
+        }
+
         const cond = p ? p.condition : (b ? b.status : 'TIGHT');
         const gap = p ? p.gap_mm : (b ? b.gap : 0.0);
         const contact = p ? p.contact_score : (gap > 0 ? 0.62 : 0.96);
