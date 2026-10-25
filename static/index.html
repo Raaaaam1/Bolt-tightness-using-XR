@@ -947,19 +947,19 @@
       </div>
 
       <!-- Status Badge Pill (Matching Figma) -->
-      <div id="res-badge" class="status-badge status-tight" style="margin-bottom: 14px; padding: 7px 12px; font-size: 11px; text-align: center; justify-content: center; width: 100%; box-sizing: border-box;">
-        ● ALL FASTENERS SECURED (CONFORMING)
+      <div id="res-badge" class="status-badge" style="margin-bottom: 14px; padding: 7px 12px; font-size: 11px; text-align: center; justify-content: center; width: 100%; box-sizing: border-box; background: rgba(180, 83, 9, 0.20); color: #f59e0b; border: 1px solid rgba(180, 83, 9, 0.45);">
+        ● AWAITING INSPECTION SCAN (PENDING)
       </div>
 
       <!-- Telemetry Rows Matching Figma -->
       <div style="display: flex; flex-direction: column; gap: 9px; font-size: 13px; font-family: 'Rajdhani', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">
           <span style="color: #94a3b8;">Target Fastener:</span>
-          <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace;"><span id="res-target" style="color: #38bdf8;">B01</span> (<span id="res-condition" style="color: #f8fafc;">TIGHT</span>)</span>
+          <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace;"><span id="res-target" style="color: #38bdf8;">B01</span> (<span id="res-condition" style="color: #94a3b8;">PENDING</span>)</span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">
           <span style="color: #94a3b8;">Visual Standoff Gap:</span>
-          <strong id="res-gap-disp" style="color: #ef4444; font-family: 'JetBrains Mono', monospace;">0.0 mm</strong>
+          <strong id="res-gap-disp" style="color: #10b981; font-family: 'JetBrains Mono', monospace;">0.0 mm</strong>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">
           <span style="color: #94a3b8;">Contact Area Score:</span>
@@ -979,7 +979,7 @@
       <div class="meter-container" style="margin-top: 14px;">
         <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
           <span style="color: #cbd5e1; font-weight: 600;">Defect Probability</span>
-          <span id="val-prob" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #10b981;">0.0% (HEALTHY)</span>
+          <span id="val-prob" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #94a3b8;">0.0% (PENDING)</span>
         </div>
         <div class="meter-bar" style="height: 9px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.14); border-radius: 5px;">
           <div id="bar-prob" class="meter-fill" style="width: 0%; background: #10b981; border-radius: 4px;"></div>
@@ -989,10 +989,10 @@
       <div class="meter-container" style="margin-top: 10px;">
         <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
           <span id="lbl-conf" style="color: #cbd5e1; font-weight: 600;">Verification Confidence</span>
-          <span id="val-conf" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #00f0ff;">91.0%</span>
+          <span id="val-conf" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #94a3b8;">0.0%</span>
         </div>
         <div class="meter-bar" style="height: 9px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.14); border-radius: 5px;">
-          <div id="bar-conf" class="meter-fill" style="width: 91%; background: #00f0ff; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 240, 255, 0.45);"></div>
+          <div id="bar-conf" class="meter-fill" style="width: 0%; background: #00f0ff; border-radius: 4px;"></div>
         </div>
       </div>
     </div>
@@ -1587,7 +1587,8 @@
           }, 350);
         }
 
-        fetchDefects();
+        // Reset to clean default on page load (all halos brown, awaiting inspection)
+        clearDefects();
       },
       undefined,
       function (error) {
@@ -1905,6 +1906,12 @@
       // If photo was analyzed, automatically update depth sensor values to this bolt!
       if (photoDetectedBolts[id]) {
         syncSensorsToBolt(id);
+      } else {
+        const condEl = document.getElementById('res-condition');
+        if (condEl) {
+          condEl.textContent = b && b.status === 'TIGHT' ? 'TIGHT' : 'PENDING';
+          condEl.style.color = b && b.status === 'TIGHT' ? '#10b981' : '#94a3b8';
+        }
       }
     }
 

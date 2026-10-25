@@ -23,6 +23,8 @@ app = FastAPI(
 def preload_models():
     """Warm up and pre-load ML models, YOLOv8 weights, and OpenCV dependencies at startup."""
     try:
+        from src.spatial_memory import clear_defects
+        clear_defects()
         from src.inference import _get_models
         _get_models()
         from src.vision_detector import get_yolo_model
