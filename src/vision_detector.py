@@ -292,12 +292,14 @@ def process_rgb_photo(
         elif ftype == "small" or r < 34:
             sample_r = r + 1
         else:
-            sample_r = r + 3
+            sample_r = r + 4
         sample_xs = np.clip(np.int32(cx + sample_r * np.cos(angles)), 0, w - 1)
         sample_ys = np.clip(np.int32(cy + sample_r * np.sin(angles)), 0, h - 1)
         valid = (sample_xs >= 6) & (sample_xs < w - 6) & (sample_ys >= 6) & (sample_ys < h - 6)
 
-        shadow_thresh = local_base * 0.42
+        # Adaptive shadow threshold for dark/painted workpieces (e.g. blue paint) vs bare metal
+        mult = 0.52 if local_base < 100 else 0.42
+        shadow_thresh = local_base * mult
         shadow_mask = np.zeros(num_samples, dtype=bool)
         for i in range(num_samples):
             if valid[i] and gray[sample_ys[i], sample_xs[i]] < shadow_thresh:
@@ -407,7 +409,7 @@ def process_rgb_photo(
             contact_score = 0.62
             est_torque = 8.0
             est_rotation = 5.6
-        elif shadow_arc_deg > 35:
+        elif shadow_arc_deg > 24:
             gap_mm = 5.0
             contact_score = 0.78
             est_torque = 13.0
